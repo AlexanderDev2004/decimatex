@@ -1,73 +1,123 @@
-# React + TypeScript + Vite
+# Decimatex
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend project untuk Decimatex (Decision Support System) menggunakan React + TypeScript + Vite, dengan UI berbasis Tailwind CSS v4 dan shadcn/ui.
 
-Currently, two official plugins are available:
+## Analisis Kondisi Proyek Saat Ini
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Berikut hasil analisis struktur dan setup terbaru:
 
-## React Compiler
+1. **Framework & Build**
+- Menggunakan Vite + React + TypeScript.
+- Script aktif di `package.json`: `dev`, `build`, `lint`, `preview`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+2. **Routing & Data Layer**
+- Routing menggunakan `react-router-dom` (`createBrowserRouter`).
+- `QueryClientProvider` dari TanStack Query sudah dipasang di root app.
 
-## Expanding the ESLint configuration
+3. **UI System**
+- shadcn/ui sudah terinisialisasi (`components.json` tersedia).
+- Tailwind CSS v4 aktif via `@tailwindcss/vite`.
+- Alias `@/*` sudah aktif di TypeScript dan Vite.
+- Komponen shadcn yang sudah tersedia:
+  - `src/components/ui/button.tsx`
+  - `src/components/ui/input.tsx`
+  - `src/components/ui/card.tsx`
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+4. **Status Implementasi Halaman**
+- `src/Home.tsx` sudah memakai contoh nyata `Card`, `Input`, dan `Button`.
+- Build terakhir dalam kondisi sukses.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Tech Stack
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- React 19
+- TypeScript 5
+- Vite 7
+- Tailwind CSS v4
+- shadcn/ui
+- TanStack Query
+- React Router DOM
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Menjalankan Proyek
+
+```bash
+# install dependencies
+bun install
+
+# development server
+bun run dev
+
+# production build
+bun run build
+
+# lint
+bun run lint
+
+# preview build
+bun run preview
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Menambah Komponen shadcn/ui
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Setelah `init`, tambahkan komponen dengan command `add`.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# satu komponen
+bunx shadcn@latest add button
+
+# beberapa komponen sekaligus
+bunx shadcn@latest add input card dialog
+```
+
+Komponen akan dibuat di `src/components/ui`.
+
+## Cara Pakai Komponen (Contoh)
+
+```tsx
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+
+export function ExampleForm() {
+  return (
+    <div className="space-y-3">
+      <Input type="email" placeholder="you@example.com" />
+      <Button>Kirim</Button>
+    </div>
+  )
+}
+```
+
+Contoh penggunaan lebih lengkap ada di `src/Home.tsx`.
+
+## Struktur Direktori Ringkas
+
+```txt
+src/
+  components/
+    ui/
+      button.tsx
+      card.tsx
+      input.tsx
+  lib/
+    utils.ts
+  App.tsx
+  Home.tsx
+  router.tsx
+  index.css
+```
+
+## Catatan Konfigurasi Penting
+
+- File konfigurasi shadcn: `components.json`
+- CSS utama shadcn + Tailwind: `src/index.css`
+- Alias path `@/*`:
+  - `tsconfig.json`
+  - `tsconfig.app.json`
+  - `vite.config.ts`
+
+Jika komponen baru tidak muncul style-nya, cek bahwa `src/index.css` masih mengimpor:
+
+```css
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 ```

@@ -162,5 +162,5 @@ const { data, rpcError, isLoading } = useRpcQuery(UserRpc.getUser(id));
 
 - **Effect Source**: `~/.local/share/effect-solutions/effect` - Real implementations when docs aren't enough
 - **Effect Solutions**: Run `effect-solutions list` for guides
-- **Database**: LibSQL with Drizzle ORM
+- **Database**: PostgreSQL with Drizzle ORM
 - **Styling**: Tailwind v4 + shadcn/ui components

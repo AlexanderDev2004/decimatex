@@ -1,16 +1,38 @@
 
-import React from 'react';
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 
 function Home() {
-  return <div style={{
-    width: '100%',
-    height: '100%',
-    display: 'flex',
-    justifyContent:'center',
-    alignItems:'center'
-  }}>
-    <h1>Welcome to react router dom and Query!</h1>
-  </div>;
+  return (
+    <main className="min-h-screen bg-background p-6 md:p-10">
+      <div className="mx-auto max-w-2xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>Try Shadcn Components</CardTitle>
+            <CardDescription>
+              Contoh sederhana pakai input dan button di halaman kamu.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Input type="text" placeholder="Nama lengkap" />
+            <Input type="email" placeholder="Email" />
+          </CardContent>
+          <CardFooter className="flex gap-2">
+            <Button>Kirim</Button>
+            <Button variant="outline">Reset</Button>
+          </CardFooter>
+        </Card>
+      </div>
+    </main>
+  )
 }
 
 export default Home;
