@@ -8,7 +8,7 @@ Berikut hasil analisis struktur dan setup terbaru:
 
 1. **Framework & Build**
 - Menggunakan Vite + React + TypeScript.
-- Script aktif di `package.json`: `dev`, `build`, `lint`, `preview`.
+- Script aktif di `package.json`: `dev`, `dev:desktop`, `build`, `build:desktop`, `desktop`, `lint`, `preview`, dan command DB Drizzle.
 
 2. **Routing & Data Layer**
 - Routing menggunakan `react-router-dom` (`createBrowserRouter`).
@@ -37,6 +37,9 @@ Berikut hasil analisis struktur dan setup terbaru:
 - TanStack Query
 - React Router DOM
 - Electron (desktop shell)
+- Bun runtime
+- PostgreSQL
+- Drizzle ORM
 
 ## Menjalankan Proyek
 
@@ -64,6 +67,18 @@ bun run lint
 
 # preview build
 bun run preview
+
+# generate migration dari schema drizzle
+bun run db:generate
+
+# apply migration ke database
+bun run db:migrate
+
+# push schema langsung (opsional, dev only)
+bun run db:push
+
+# buka drizzle studio
+bun run db:studio
 ```
 
 ## Menjalankan Versi Desktop
@@ -85,6 +100,32 @@ electron .
 Catatan:
 
 - Router otomatis memakai hash mode saat dijalankan dari file lokal (`file://`) supaya navigasi tetap aman di Electron.
+
+## Desain Database DSS
+
+Schema PostgreSQL + Drizzle yang sudah disiapkan ada di `src/server/db/schema.ts`, dengan tabel inti:
+
+- `decision_problems`
+- `criteria`
+- `alternatives`
+- `decision_matrix_values`
+- `methods`
+- `analysis_runs`
+- `analysis_results`
+
+Constraint penting yang sudah dipasang:
+
+- Unique nama kriteria/alternatif per decision.
+- Composite key pada nilai matrix (`decision_id`, `alternative_id`, `criteria_id`).
+- Relasi kuat untuk menjaga matrix dan result tetap pada decision yang sama.
+- Seed default metode DSS (AHP, TOPSIS, EDAS, PSI, VIKOR, MOORA, ELECTRE, PROMETHEE, COPRAS).
+
+## Setup DB Cepat
+
+1. Copy `.env.example` menjadi `.env`.
+2. Isi `DATABASE_URL` PostgreSQL lokal/cloud.
+3. Jalankan `bun run db:generate`.
+4. Jalankan `bun run db:migrate`.
 
 ## Menambah Komponen shadcn/ui
 
@@ -129,6 +170,9 @@ src/
       input.tsx
   lib/
     utils.ts
+  server/
+    db/
+      schema.ts
   App.tsx
   Home.tsx
   router.tsx

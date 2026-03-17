@@ -10,6 +10,10 @@
     "build": "tsc -b && vite build",
     "build:desktop": "tsc -b && vite build --base ./",
     "desktop": "bun run build:desktop && electron .",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
     "lint": "eslint .",
     "preview": "vite preview"
   },
