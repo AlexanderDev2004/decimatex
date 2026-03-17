@@ -36,6 +36,7 @@ Berikut hasil analisis struktur dan setup terbaru:
 - shadcn/ui
 - TanStack Query
 - React Router DOM
+- Electron (desktop shell)
 
 ## Menjalankan Proyek
 
@@ -46,8 +47,17 @@ bun install
 # development server
 bun run dev
 
+# development desktop (Electron + Vite)
+bun run dev:desktop
+
 # production build
 bun run build
+
+# desktop build (assets relatif untuk file://)
+bun run build:desktop
+
+# jalankan desktop app (otomatis build desktop)
+bun run desktop
 
 # lint
 bun run lint
@@ -55,6 +65,26 @@ bun run lint
 # preview build
 bun run preview
 ```
+
+## Menjalankan Versi Desktop
+
+Alur yang direkomendasikan:
+
+```bash
+# mode pengembangan desktop
+bun run dev:desktop
+
+# mode desktop sekali jalan (otomatis build)
+bun run desktop
+
+# atau build desktop manual lalu jalankan
+bun run build:desktop
+electron .
+```
+
+Catatan:
+
+- Router otomatis memakai hash mode saat dijalankan dari file lokal (`file://`) supaya navigasi tetap aman di Electron.
 
 ## Menambah Komponen shadcn/ui
 

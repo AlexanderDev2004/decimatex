@@ -189,6 +189,10 @@ Frontend
 * TailwindCSS
 * shadcn/ui
 
+Desktop
+
+* Electron
+
 Backend
 
 * Bun runtime
@@ -211,6 +215,7 @@ Deployment
 ```
 # Development
 bun run dev
+bun run dev:desktop
 bun run typecheck
 bun run lint
 bun run format
@@ -227,6 +232,8 @@ bun run test:service -- src/features/topic/lib/topic-service.test.ts
 
 # Production
 bun run build
+bun run build:desktop
+bun run desktop
 bun run deploy
 ```
 
