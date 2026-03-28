@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import {
   Card,
   CardContent,
@@ -1556,6 +1557,7 @@ function MatrixPage() {
   const [matrix, setMatrix] = useState<MatrixValue[]>([])
   const [currentCriteria, setCurrentCriteria] = useState("")
   const [currentCriteriaType, setCurrentCriteriaType] = useState<"benefit" | "cost">("benefit")
+  const [isWeightEnabled, setIsWeightEnabled] = useState(true)
   const [weightMode, setWeightMode] = useState<WeightInputMode>("percentage")
   const [currentAlternative, setCurrentAlternative] = useState("")
   const [results, setResults] = useState<RankingResult[] | null>(null)
@@ -1649,10 +1651,12 @@ function MatrixPage() {
     Number.parseFloat((weightMode === "percentage" ? weight * 100 : weight).toFixed(6))
 
   const rawWeights = criteria.map((criterion) => Math.max(0, criterion.weight))
-  const normalizedWeights = normalizeWeights(rawWeights, criteria.length)
+  const normalizedInputWeights = normalizeWeights(rawWeights, criteria.length)
+  const effectiveWeights = isWeightEnabled ? normalizedInputWeights : buildEqualWeights(criteria.length)
   const rawWeightTotal = rawWeights.reduce((acc, weight) => acc + weight, 0)
   const displayedWeightTotal = weightMode === "percentage" ? rawWeightTotal * 100 : rawWeightTotal
-  const canCalculate = criteria.length >= 2 && alternatives.length >= 2 && rawWeightTotal > 0
+  const hasValidWeightInput = !isWeightEnabled || rawWeightTotal > 0
+  const canCalculate = criteria.length >= 2 && alternatives.length >= 2 && hasValidWeightInput
 
   const runCalculation = () => {
     if (!canCalculate) {
@@ -1660,7 +1664,7 @@ function MatrixPage() {
     }
 
     let results: RankingResult[] = []
-    const calculationWeights = normalizeWeights(criteria.map((criterion) => criterion.weight), criteria.length)
+    const calculationWeights = effectiveWeights
     
     switch (method) {
       case "topsis":
@@ -1715,7 +1719,7 @@ function MatrixPage() {
     : []
 
   const methodStepDetails = showSteps && results
-    ? createMethodStepDetails(method, criteria, alternatives, matrix, normalizedWeights)
+    ? createMethodStepDetails(method, criteria, alternatives, matrix, effectiveWeights)
     : null
 
   return (
@@ -1774,21 +1778,46 @@ function MatrixPage() {
                     </Button>
                   </div>
 
-                  <div className="flex items-center justify-between rounded-md border p-3">
-                    <span className="text-sm font-medium">Mode input bobot</span>
-                    <select
-                      value={weightMode}
-                      onChange={(e) => setWeightMode(e.target.value as WeightInputMode)}
-                      className="border rounded-md px-3 py-2 bg-background text-sm"
-                    >
-                      <option value="percentage">Persentase (%)</option>
-                      <option value="decimal">Desimal (0-1)</option>
-                    </select>
+                  <div className="space-y-3 rounded-md border p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Gunakan bobot kriteria</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground">
+                          {isWeightEnabled ? "Aktif" : "Nonaktif"}
+                        </span>
+                        <Switch
+                          checked={isWeightEnabled}
+                          onCheckedChange={setIsWeightEnabled}
+                          aria-label="Gunakan bobot kriteria"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Mode input bobot</span>
+                      <select
+                        value={weightMode}
+                        onChange={(e) => setWeightMode(e.target.value as WeightInputMode)}
+                        disabled={!isWeightEnabled}
+                        className="border rounded-md px-3 py-2 bg-background text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <option value="percentage">Persentase (%)</option>
+                        <option value="decimal">Desimal (0-1)</option>
+                      </select>
+                    </div>
                   </div>
 
-                  <p className="text-xs text-muted-foreground">
-                    Total bobot input: {formatNumber(displayedWeightTotal, 4)}{weightMode === "percentage" ? "%" : ""}
-                  </p>
+                  {isWeightEnabled ? (
+                    <p className="text-xs text-muted-foreground">
+                      Total bobot input: {formatNumber(displayedWeightTotal, 4)}{weightMode === "percentage" ? "%" : ""}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {criteria.length > 0
+                        ? `Bobot dinonaktifkan. Sistem memakai bobot sama rata (${formatNumber(1 / criteria.length, 4)} per kriteria).`
+                        : "Bobot dinonaktifkan. Tambahkan kriteria untuk membentuk bobot sama rata."}
+                    </p>
+                  )}
 
                   <div className="space-y-2">
                     {criteria.map((c, index) => (
@@ -1801,7 +1830,7 @@ function MatrixPage() {
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            Bobot normalisasi (dipakai hitung): {formatNumber(normalizedWeights[index] ?? 0, 4)}
+                            Bobot dipakai (hitung): {formatNumber(effectiveWeights[index] ?? 0, 4)}
                           </p>
                         </div>
 
@@ -1812,6 +1841,7 @@ function MatrixPage() {
                             min="0"
                             value={getDisplayWeight(c.weight)}
                             onChange={(e) => updateCriteriaWeight(c.id, e.target.value)}
+                            disabled={!isWeightEnabled}
                             className="h-8 w-28 text-right"
                           />
                           <span className="w-5 text-center text-xs text-muted-foreground">
@@ -1946,7 +1976,7 @@ function MatrixPage() {
               </Button>
             </div>
 
-            {criteria.length >= 2 && alternatives.length >= 2 && rawWeightTotal <= 0 && (
+            {isWeightEnabled && criteria.length >= 2 && alternatives.length >= 2 && rawWeightTotal <= 0 && (
               <p className="mt-3 text-center text-sm text-red-600">
                 Total bobot harus lebih dari 0.
               </p>
@@ -2121,16 +2151,22 @@ function MatrixPage() {
 
                       <div>
                         <h4 className="font-semibold mb-2">Langkah 5 : Menentukan bobot setiap kriteria</h4>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          Bobot input akan dinormalisasi agar total bobot = 1 sebelum perhitungan.
-                        </p>
+                        {isWeightEnabled ? (
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Bobot input akan dinormalisasi agar total bobot = 1 sebelum perhitungan.
+                          </p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Bobot dinonaktifkan. Sistem memakai bobot sama rata (w_j = 1/n).
+                          </p>
+                        )}
                         <div className="overflow-x-auto">
                           <table className="w-full text-sm border-collapse">
                             <thead>
                               <tr>
                                 <th className="border p-2 text-left">Kriteria</th>
                                 <th className="border p-2 text-center">Bobot input</th>
-                                <th className="border p-2 text-center">Bobot normalisasi (w_j)</th>
+                                <th className="border p-2 text-center">Bobot dipakai (w_j)</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -2138,9 +2174,11 @@ function MatrixPage() {
                                 <tr key={crit.id}>
                                   <td className="border p-2">{crit.name}</td>
                                   <td className="border p-2 text-center">
-                                    {formatNumber(getDisplayWeight(crit.weight), 4)}{weightMode === "percentage" ? "%" : ""}
+                                    {isWeightEnabled
+                                      ? `${formatNumber(getDisplayWeight(crit.weight), 4)}${weightMode === "percentage" ? "%" : ""}`
+                                      : "-"}
                                   </td>
-                                  <td className="border p-2 text-center">{formatNumber(normalizedWeights[index] ?? 0, 4)}</td>
+                                  <td className="border p-2 text-center">{formatNumber(effectiveWeights[index] ?? 0, 4)}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -2319,18 +2357,24 @@ function MatrixPage() {
                           <div className="space-y-2">
                             <h4 className="font-semibold">Langkah 5 : Menentukan bobot setiap kriteria</h4>
                             <pre className="overflow-x-auto rounded-lg bg-muted p-3 text-sm">
-                              <code>w_j' = w_j / sum_j w_j</code>
+                              <code>{isWeightEnabled ? "w_j' = w_j / sum_j w_j" : "w_j = 1 / n"}</code>
                             </pre>
-                            <p className="text-sm text-muted-foreground">
-                              Total bobot input: {formatNumber(displayedWeightTotal, 4)}{weightMode === "percentage" ? "%" : ""}
-                            </p>
+                            {isWeightEnabled ? (
+                              <p className="text-sm text-muted-foreground">
+                                Total bobot input: {formatNumber(displayedWeightTotal, 4)}{weightMode === "percentage" ? "%" : ""}
+                              </p>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                Bobot dinonaktifkan. Sistem memakai bobot sama rata (w_j = 1/n).
+                              </p>
+                            )}
                             <div className="overflow-x-auto">
                               <table className="w-full text-sm border-collapse">
                                 <thead>
                                   <tr>
                                     <th className="border p-2 text-left">Kriteria</th>
                                     <th className="border p-2 text-center">Bobot input</th>
-                                    <th className="border p-2 text-center">Bobot normalisasi (w_j)</th>
+                                    <th className="border p-2 text-center">Bobot dipakai (w_j)</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -2338,9 +2382,11 @@ function MatrixPage() {
                                     <tr key={`popup-step5-${crit.id}`}>
                                       <td className="border p-2">{crit.name}</td>
                                       <td className="border p-2 text-center">
-                                        {formatNumber(getDisplayWeight(crit.weight), 4)}{weightMode === "percentage" ? "%" : ""}
+                                        {isWeightEnabled
+                                          ? `${formatNumber(getDisplayWeight(crit.weight), 4)}${weightMode === "percentage" ? "%" : ""}`
+                                          : "-"}
                                       </td>
-                                      <td className="border p-2 text-center">{formatNumber(normalizedWeights[index] ?? 0, 4)}</td>
+                                      <td className="border p-2 text-center">{formatNumber(effectiveWeights[index] ?? 0, 4)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
