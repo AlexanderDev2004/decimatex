@@ -1,197 +1,237 @@
 # Decimatex
 
-Frontend project untuk Decimatex (Decision Support System) menggunakan React + TypeScript + Vite, dengan UI berbasis Tailwind CSS v4 dan shadcn/ui.
-
-## Analisis Kondisi Proyek Saat Ini
-
-Berikut hasil analisis struktur dan setup terbaru:
-
-1. **Framework & Build**
-- Menggunakan Vite + React + TypeScript.
-- Script aktif di `package.json`: `dev`, `dev:desktop`, `build`, `build:desktop`, `desktop`, `lint`, `preview`, dan command DB Drizzle.
-
-2. **Routing & Data Layer**
-- Routing menggunakan `react-router-dom` (`createBrowserRouter`).
-- `QueryClientProvider` dari TanStack Query sudah dipasang di root app.
-
-3. **UI System**
-- shadcn/ui sudah terinisialisasi (`components.json` tersedia).
-- Tailwind CSS v4 aktif via `@tailwindcss/vite`.
-- Alias `@/*` sudah aktif di TypeScript dan Vite.
-- Komponen shadcn yang sudah tersedia:
-  - `src/components/ui/button.tsx`
-  - `src/components/ui/input.tsx`
-  - `src/components/ui/card.tsx`
-
-4. **Status Implementasi Halaman**
-- `src/Home.tsx` sudah memakai contoh nyata `Card`, `Input`, dan `Button`.
-- Build terakhir dalam kondisi sukses.
+Platform Sistem Pendukung Keputusan (SPK) yang mengotomatiskan analisis keputusan menggunakan metode MCDM (Multi-Criteria Decision Making). Decimatex mendukung web dan desktop (Electron) dengan backend Hono API + PostgreSQL.
 
 ## Tech Stack
 
-- React 19
-- TypeScript 5
-- Vite 7
-- Tailwind CSS v4
-- shadcn/ui
-- TanStack Query
-- React Router DOM
-- Electron (desktop shell)
-- Bun runtime
-- PostgreSQL
-- Drizzle ORM
+| Layer | Technology |
+|-------|------------|
+| Frontend | React 19, TypeScript 5, Vite 7 |
+| Styling | Tailwind CSS v4, shadcn/ui |
+| State & Fetching | TanStack Query, React Router DOM |
+| Backend | Hono, Effect-TS |
+| Database | PostgreSQL, Drizzle ORM |
+| Runtime | Bun |
+| Desktop | Electron |
+| Testing | Vitest, Testing Library |
 
 ## Menjalankan Proyek
 
+### Web Development
+
 ```bash
-# install dependencies
+# Install dependencies
 bun install
 
-# development server
+# Development server (Vite only)
 bun run dev
 
-# development desktop (Electron + Vite)
+# Development server + API backend (recommended)
+bun run dev:full
+```
+
+### Desktop Development
+
+```bash
+# Development mode (spawns API server + Vite + Electron)
 bun run dev:desktop
 
-# production build
-bun run build
-
-# desktop build (assets relatif untuk file://)
-bun run build:desktop
-
-# jalankan desktop app (otomatis build desktop)
+# Build and run production desktop
 bun run desktop
+```
 
-# lint
-bun run lint
+### Database
 
-# preview build
-bun run preview
-
-# generate migration dari schema drizzle
+```bash
+# Generate migration
 bun run db:generate
 
-# apply migration ke database
+# Apply migration
 bun run db:migrate
 
-# push schema langsung (opsional, dev only)
+# Push schema directly (dev only)
 bun run db:push
 
-# buka drizzle studio
+# Open Drizzle Studio
 bun run db:studio
+
+# Seed default DSS methods
+bun run db:seed
 ```
 
-## Menjalankan Versi Desktop
-
-Alur yang direkomendasikan:
+### Testing & Quality
 
 ```bash
-# mode pengembangan desktop
-bun run dev:desktop
+# Run tests
+bun run test
 
-# mode desktop sekali jalan (otomatis build)
-bun run desktop
+# Run tests in watch mode
+bun run test:watch
 
-# atau build desktop manual lalu jalankan
-bun run build:desktop
-electron .
+# Lint
+bun run lint
+
+# Type check
+bunx tsc -b
 ```
 
-Catatan:
-
-- Router otomatis memakai hash mode saat dijalankan dari file lokal (`file://`) supaya navigasi tetap aman di Electron.
-
-## Desain Database DSS
-
-Schema PostgreSQL + Drizzle yang sudah disiapkan ada di `src/server/db/schema.ts`, dengan tabel inti:
-
-- `decision_problems`
-- `criteria`
-- `alternatives`
-- `decision_matrix_values`
-- `methods`
-- `analysis_runs`
-- `analysis_results`
-
-Constraint penting yang sudah dipasang:
-
-- Unique nama kriteria/alternatif per decision.
-- Composite key pada nilai matrix (`decision_id`, `alternative_id`, `criteria_id`).
-- Relasi kuat untuk menjaga matrix dan result tetap pada decision yang sama.
-- Seed default metode DSS (AHP, TOPSIS, EDAS, PSI, VIKOR, MOORA, ELECTRE, PROMETHEE, COPRAS).
-
-## Setup DB Cepat
+## Setup Database
 
 1. Copy `.env.example` menjadi `.env`.
-2. Isi `DATABASE_URL` PostgreSQL lokal/cloud.
+2. Isi `DATABASE_URL` dengan URL PostgreSQL lokal/cloud.
 3. Jalankan `bun run db:generate`.
 4. Jalankan `bun run db:migrate`.
+5. Jalankan `bun run db:seed` untuk mengisi tabel metode DSS default.
 
-## Menambah Komponen shadcn/ui
+## Arsitektur Project
 
-Setelah `init`, tambahkan komponen dengan command `add`.
+```
+decimatex/
+├── src/
+│   ├── features/decision/
+│   │   ├── lib/methods/          # 9 algoritma DSS modular
+│   │   │   ├── topsis.ts
+│   │   │   ├── edas.ts
+│   │   │   ├── psi.ts
+│   │   │   ├── moora.ts
+│   │   │   ├── vikor.ts
+│   │   │   ├── ahp.ts
+│   │   │   ├── copras.ts
+│   │   │   ├── promethee.ts
+│   │   │   ├── electre.ts
+│   │   │   ├── shared.ts         # Utilities & types
+│   │   │   └── index.ts          # Method registry
+│   │   └── hooks/                # TanStack Query hooks
+│   │       ├── use-decisions.ts
+│   │       ├── use-criteria.ts
+│   │       ├── use-alternatives.ts
+│   │       ├── use-matrix.ts
+│   │       └── use-analysis.ts
+│   ├── server/
+│   │   ├── index.ts              # Hono app entry
+│   │   ├── standalone.ts         # Bun.serve standalone
+│   │   ├── routes/               # Hono route handlers
+│   │   │   ├── decisions.ts
+│   │   │   ├── criteria.ts
+│   │   │   ├── alternatives.ts
+│   │   │   ├── matrix.ts
+│   │   │   └── analysis.ts
+│   │   ├── services/             # Effect-TS business logic
+│   │   │   ├── decision-service.ts
+│   │   │   ├── criteria-service.ts
+│   │   │   ├── alternative-service.ts
+│   │   │   ├── matrix-service.ts
+│   │   │   └── analysis-service.ts
+│   │   └── db/
+│   │       ├── client.ts         # Drizzle client
+│   │       ├── schema.ts         # PostgreSQL schema
+│   │       └── seed.ts           # Seed script
+│   ├── routes/                   # React pages
+│   │   ├── Home.tsx
+│   │   ├── Learn.tsx
+│   │   ├── SelectMethod.tsx
+│   │   ├── MatrixPage.tsx
+│   │   ├── History.tsx
+│   │   └── HistoryDetail.tsx
+│   ├── components/layout/
+│   │   └── Layout.tsx            # Navbar + Outlet wrapper
+│   ├── components/ui/            # shadcn/ui components
+│   ├── lib/
+│   │   ├── utils.ts              # cn() helper
+│   │   └── api-client.ts       # Typed fetch wrapper
+│   ├── App.tsx
+│   ├── router.tsx
+│   └── index.css
+├── electron/
+│   ├── main.cjs                  # Electron main process (spawns API)
+│   └── preload.cjs               # IPC preload script
+├── drizzle/                      # Migration files
+├── vite.config.ts
+├── vitest.config.ts
+└── package.json
+```
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/decisions` | List all decisions |
+| POST | `/api/decisions` | Create new decision |
+| GET | `/api/decisions/:id` | Get decision by ID |
+| PATCH | `/api/decisions/:id` | Update decision |
+| DELETE | `/api/decisions/:id` | Delete decision |
+| GET | `/api/decisions/:id/criteria` | List criteria |
+| POST | `/api/decisions/:id/criteria` | Add criteria |
+| GET | `/api/decisions/:id/alternatives` | List alternatives |
+| POST | `/api/decisions/:id/alternatives` | Add alternative |
+| GET | `/api/decisions/:id/matrix` | Get matrix values |
+| POST | `/api/decisions/:id/matrix` | Save matrix value |
+| POST | `/api/analysis/run` | Run DSS analysis |
+| GET | `/api/analysis/history/:decisionId` | Get analysis history |
+
+## Metode DSS yang Didukung
+
+| Method | Full Name | Description |
+|--------|-----------|-------------|
+| TOPSIS | Technique for Order Preference by Similarity | Distance to ideal/anti-ideal solutions |
+| AHP | Analytic Hierarchy Process | Pairwise comparison (simplified) |
+| EDAS | Evaluation based on Distance from Average | Compare against average solution |
+| PSI | Preference Selection Index | Preference variation ranking |
+| VIKOR | VIKOR Compromise Solution | Compromise ranking with utility & regret |
+| MOORA | Multi-Objective Optimization Ratio Analysis | Benefit/cost ratio system |
+| ELECTRE | ELimination and Choice Expressing Reality | Outranking with concordance/discordance |
+| PROMETHEE | Preference Ranking Organization Method | Outranking with preference functions |
+| COPRAS | Complex Proportional Assessment | Proportional utility ranking |
+
+## Struktur DSS Pipeline
+
+Setiap metode mengikuti pipeline standar:
+
+```
+Input Matrix
+    ↓
+Normalization
+    ↓
+Weight Application
+    ↓
+Method-specific Computation
+    ↓
+Score Generation
+    ↓
+Ranking Output
+```
+
+Semua metode mengimplementasikan interface `runMethod(method, criteria, alternatives, matrix, weights)` yang di-export dari `src/features/decision/lib/methods/index.ts`.
+
+## Desktop (Electron)
+
+Saat dijalankan sebagai aplikasi desktop:
+
+- **Main process** spawn Hono API server di port internal (default 34567)
+- **Renderer** berkomunikasi via IPC untuk mendapatkan port server
+- **API client** auto-detect Electron dan mengarahkan ke `localhost:${port}`
+- Router otomatis memakai hash mode saat dijalankan dari `file://`
+
+## Testing
 
 ```bash
-# satu komponen
-bunx shadcn@latest add button
+# Run all tests
+bun run test
 
-# beberapa komponen sekaligus
-bunx shadcn@latest add input card dialog
+# Run specific test file
+bunx vitest run src/features/decision/lib/methods/topsis.test.ts
 ```
 
-Komponen akan dibuat di `src/components/ui`.
+Tests tersedia untuk:
+- `shared.test.ts` — utilities (`buildMatrix2d`, `normalizeWeights`, `formatNumber`)
+- `topsis.test.ts` — TOPSIS algorithm correctness
+- `edas.test.ts` — EDAS algorithm correctness
 
-## Cara Pakai Komponen (Contoh)
-
-```tsx
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-
-export function ExampleForm() {
-  return (
-    <div className="space-y-3">
-      <Input type="email" placeholder="you@example.com" />
-      <Button>Kirim</Button>
-    </div>
-  )
-}
-```
-
-Contoh penggunaan lebih lengkap ada di `src/Home.tsx`.
-
-## Struktur Direktori Ringkas
-
-```txt
-src/
-  components/
-    ui/
-      button.tsx
-      card.tsx
-      input.tsx
-  lib/
-    utils.ts
-  server/
-    db/
-      schema.ts
-  App.tsx
-  Home.tsx
-  router.tsx
-  index.css
-```
-
-## Catatan Konfigurasi Penting
+## Catatan Penting
 
 - File konfigurasi shadcn: `components.json`
-- CSS utama shadcn + Tailwind: `src/index.css`
-- Alias path `@/*`:
-  - `tsconfig.json`
-  - `tsconfig.app.json`
-  - `vite.config.ts`
-
-Jika komponen baru tidak muncul style-nya, cek bahwa `src/index.css` masih mengimpor:
-
-```css
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-```
+- CSS utama: `src/index.css`
+- Alias path `@/*` aktif di TypeScript dan Vite
+- Environment variable: `DATABASE_URL` (PostgreSQL)
+- `src/server/standalone.ts` digunakan untuk menjalankan server standalone (production/Electron)
+- `src/server/index.ts` digunakan untuk development dengan Hono middleware
