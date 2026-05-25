@@ -202,10 +202,11 @@ function Home() {
           <p className="mx-auto mb-8 max-w-xl text-primary-foreground/80">
             Gunakan Decimatex sekarang untuk membuat keputusan yang lebih terukur dan objektif.
           </p>
-          <Button 
-            size="lg" 
+          <Button
+            size="lg"
             variant="secondary"
             className="gap-2"
+            onClick={() => navigate("/decision")}
           >
             Buat Keputusan Pertama <ArrowRight className="h-4 w-4" />
           </Button>
