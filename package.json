@@ -6,7 +6,7 @@
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
-    "dev:api": "bun --watch src/server/index.ts",
+    "dev:api": "bun --watch src/server/standalone.ts",
     "dev:full": "concurrently -k \"bun run dev:api\" \"vite\"",
     "dev:desktop": "concurrently -k \"PORT=34567 bun src/server/standalone.ts\" \"vite --host 127.0.0.1 --port 5173 --strictPort\" \"wait-on tcp:5173 && wait-on tcp:34567 && electron . --dev\"",
     "build": "tsc -b && vite build",
@@ -28,6 +28,7 @@
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "driver.js": "^1.8.0",
     "drizzle-orm": "^0.45.1",
     "effect": "^3.19.19",
     "hono": "^4.12.5",

@@ -20,16 +20,20 @@ import {
 	Play,
 	FileText,
 } from "lucide-react"
+import { useCreateCriteria, useDeleteCriteria, useCriteria } from "@/features/decision/hooks/use-criteria"
+import { useCreateAlternative, useDeleteAlternative, useAlternatives } from "@/features/decision/hooks/use-alternatives"
+import { useSaveMatrixValue, useMatrix } from "@/features/decision/hooks/use-matrix"
+import { useRunAnalysis } from "@/features/decision/hooks/use-analysis"
 import {
 	runMethod,
 	createMethodStepDetails,
-	buildMatrix2d,
 	normalizeWeights,
 	buildEqualWeights,
 	formatNumber,
 	METHOD_NAMES,
 } from "@/features/decision/lib/methods"
 import type { Criteria, Alternative, MatrixValue, RankingResult } from "@/features/decision/lib/methods"
+import MethodStepsExplorer from "@/components/method-steps"
 
 type WeightInputMode = "percentage" | "decimal"
 
@@ -39,6 +43,18 @@ function MatrixPage() {
 
 	const method = searchParams.get("method") || "topsis"
 	const decisionName = decodeURIComponent(searchParams.get("name") || "")
+	const decisionId = searchParams.get("decisionId") || null
+
+	// Backend hooks
+	const createCriteria = useCreateCriteria()
+	const deleteCriteria = useDeleteCriteria()
+	const createAlternative = useCreateAlternative()
+	const deleteAlternative = useDeleteAlternative()
+	const saveMatrixValue = useSaveMatrixValue()
+	const runAnalysis = useRunAnalysis()
+	const criteriaQuery = useCriteria(decisionId ?? undefined)
+	const alternativesQuery = useAlternatives(decisionId ?? undefined)
+	const matrixQuery = useMatrix(decisionId ?? undefined)
 
 	const [criteria, setCriteria] = useState<Criteria[]>([])
 	const [alternatives, setAlternatives] = useState<Alternative[]>([])
@@ -51,9 +67,51 @@ function MatrixPage() {
 	const [results, setResults] = useState<RankingResult[] | null>(null)
 	const [showResults, setShowResults] = useState(false)
 	const [showSteps, setShowSteps] = useState(false)
-	const [showFormulaPopup, setShowFormulaPopup] = useState(false)
+	const [hasLoadedExisting, setHasLoadedExisting] = useState(false)
 
-	const addCriteria = () => {
+	// Muat data keputusan yang sudah ada (mode edit dari History).
+	// Pola "adjust state during render": sinkron sekali saat data query tiba,
+	// dijaga oleh hasLoadedExisting supaya tidak berulang.
+	const isLoadingExisting =
+		!!decisionId &&
+		!hasLoadedExisting &&
+		!criteriaQuery.isLoading &&
+		!alternativesQuery.isLoading &&
+		!matrixQuery.isLoading
+
+	const { data: criteriaData } = criteriaQuery
+	const { data: alternativesData } = alternativesQuery
+	const { data: matrixData } = matrixQuery
+
+	if (
+		decisionId &&
+		!hasLoadedExisting &&
+		criteriaData &&
+		alternativesData &&
+		matrixData
+	) {
+		setHasLoadedExisting(true)
+		setCriteria(
+			criteriaData.map((c) => ({
+				id: c.id,
+				name: c.name,
+				type: c.type,
+				weight: Number.parseFloat(c.weight),
+			})),
+		)
+		setAlternatives(
+			alternativesData.map((a) => ({ id: a.id, name: a.name })),
+		)
+		setMatrix(
+			matrixData.map((m) => ({
+				alternativeId: m.alternativeId,
+				criteriaId: m.criteriaId,
+				value: Number.parseFloat(m.value),
+			})),
+		)
+	}
+
+	const addCriteria = async () => {
 		if (currentCriteria.trim()) {
 			const nextCount = criteria.length + 1
 			const normalizedCurrent = normalizeWeights(
@@ -73,23 +131,63 @@ function MatrixPage() {
 				weight: newWeight,
 			}
 
+			// Save to backend if decisionId exists
+			if (decisionId) {
+				try {
+					const saved = await createCriteria.mutateAsync({
+						decisionId,
+						name: currentCriteria,
+						type: currentCriteriaType,
+						weight: newWeight.toString(),
+						position: criteria.length,
+					})
+					newCriteria.id = saved.id
+				} catch (error) {
+					console.error("Failed to save criteria:", error)
+				}
+			}
+
 			setCriteria([...adjustedCriteria, newCriteria])
 			setCurrentCriteria("")
 		}
 	}
 
-	const addAlternative = () => {
+	const addAlternative = async () => {
 		if (currentAlternative.trim()) {
 			const newAlt: Alternative = {
 				id: crypto.randomUUID(),
 				name: currentAlternative,
 			}
+
+			// Save to backend if decisionId exists
+			if (decisionId) {
+				try {
+					const saved = await createAlternative.mutateAsync({
+						decisionId,
+						name: currentAlternative,
+						position: alternatives.length,
+					})
+					newAlt.id = saved.id
+				} catch (error) {
+					console.error("Failed to save alternative:", error)
+				}
+			}
+
 			setAlternatives([...alternatives, newAlt])
 			setCurrentAlternative("")
 		}
 	}
 
-	const removeCriteria = (id: string) => {
+	const removeCriteria = async (id: string) => {
+		// Delete from backend if decisionId exists
+		if (decisionId) {
+			try {
+				await deleteCriteria.mutateAsync({ decisionId, criteriaId: id })
+			} catch (error) {
+				console.error("Failed to delete criteria:", error)
+			}
+		}
+
 		const filteredCriteria = criteria.filter((criterion) => criterion.id !== id)
 		if (filteredCriteria.length === 0) {
 			setCriteria([])
@@ -108,12 +206,22 @@ function MatrixPage() {
 		setMatrix(matrix.filter((m) => m.criteriaId !== id))
 	}
 
-	const removeAlternative = (id: string) => {
+	const removeAlternative = async (id: string) => {
+		// Delete from backend if decisionId exists
+		if (decisionId) {
+			try {
+				await deleteAlternative.mutateAsync({ decisionId, alternativeId: id })
+			} catch (error) {
+				console.error("Failed to delete alternative:", error)
+			}
+		}
+
 		setAlternatives(alternatives.filter((a) => a.id !== id))
 		setMatrix(matrix.filter((m) => m.alternativeId !== id))
 	}
 
-	const updateMatrixValue = (altId: string, critId: string, value: number) => {
+	const updateMatrixValue = async (altId: string, critId: string, value: number) => {
+		// Update local state immediately for responsiveness
 		setMatrix((prev) => {
 			const existing = prev.find(
 				(m) => m.alternativeId === altId && m.criteriaId === critId,
@@ -127,6 +235,20 @@ function MatrixPage() {
 			}
 			return [...prev, { alternativeId: altId, criteriaId: critId, value }]
 		})
+
+		// Save to backend if decisionId exists
+		if (decisionId) {
+			try {
+				await saveMatrixValue.mutateAsync({
+					decisionId,
+					alternativeId: altId,
+					criteriaId: critId,
+					value: value.toString(),
+				})
+			} catch (error) {
+				console.error("Failed to save matrix value:", error)
+			}
+		}
 	}
 
 	const updateCriteriaWeight = (criteriaId: string, inputValue: string) => {
@@ -178,10 +300,23 @@ function MatrixPage() {
 		setShowResults(true)
 	}
 
-	const methodName = METHOD_NAMES[method] || method
+	const handleSaveResults = async () => {
+		if (!decisionId || !results) {
+			return
+		}
 
-	const stepMatrix =
-		showSteps && results ? buildMatrix2d(criteria, alternatives, matrix) : []
+		try {
+			await runAnalysis.mutateAsync({
+				decisionId,
+				methodCode: method,
+			})
+			navigate("/history")
+		} catch (error) {
+			console.error("Failed to save analysis:", error)
+		}
+	}
+
+	const methodName = METHOD_NAMES[method] || method
 
 	const methodStepDetails =
 		showSteps && results
@@ -205,6 +340,11 @@ function MatrixPage() {
 						<p className="text-muted-foreground">
 							Metode: {methodName}
 						</p>
+						{isLoadingExisting && (
+							<p className="mt-1 text-sm text-muted-foreground">
+								Memuat data keputusan...
+							</p>
+						)}
 					</div>
 				</div>
 
@@ -230,6 +370,7 @@ function MatrixPage() {
 									<div className="flex gap-2">
 										<div className="flex flex-1 gap-2">
 											<Input
+												id="criteria-input"
 												placeholder="Nama kriteria..."
 												value={currentCriteria}
 												onChange={(e) =>
@@ -313,7 +454,7 @@ function MatrixPage() {
 										</p>
 									)}
 
-									<div className="space-y-2">
+									<div id="criteria-list" className="space-y-2">
 										{criteria.map((c, index) => (
 											<div
 												key={c.id}
@@ -398,6 +539,7 @@ function MatrixPage() {
 								<CardContent className="space-y-4">
 									<div className="flex gap-2">
 										<Input
+											id="alternative-input"
 											placeholder="Nama alternatif..."
 											value={currentAlternative}
 											onChange={(e) =>
@@ -412,7 +554,7 @@ function MatrixPage() {
 											<Plus className="h-4 w-4" />
 										</Button>
 									</div>
-									<div className="space-y-2">
+									<div id="alternative-list" className="space-y-2">
 										{alternatives.map((a) => (
 											<div
 												key={a.id}
@@ -451,7 +593,7 @@ function MatrixPage() {
 									</CardDescription>
 								</CardHeader>
 								<CardContent>
-									<div className="overflow-x-auto">
+									<div id="matrix-table" className="overflow-x-auto">
 										<table className="w-full">
 											<thead>
 												<tr>
@@ -524,6 +666,7 @@ function MatrixPage() {
 
 						<div className="flex justify-center">
 							<Button
+								id="calc-button"
 								size="lg"
 								className="gap-2"
 								disabled={!canCalculate}
@@ -600,7 +743,6 @@ function MatrixPage() {
 									variant="outline"
 									onClick={() => {
 										setShowResults(false)
-										setShowFormulaPopup(false)
 									}}
 								>
 									Ubah Input
@@ -610,9 +752,6 @@ function MatrixPage() {
 									onClick={() => {
 										const nextShowSteps = !showSteps
 										setShowSteps(nextShowSteps)
-										if (!nextShowSteps) {
-											setShowFormulaPopup(false)
-										}
 									}}
 									className="gap-2"
 								>
@@ -621,854 +760,48 @@ function MatrixPage() {
 										? "Sembunyikan Langkah"
 										: "Lihat Langkah Perhitungan"}
 								</Button>
-								<Button className="gap-2">
+								<Button 
+									id="save-result"
+									className="gap-2"
+									onClick={handleSaveResults}
+									disabled={!decisionId || runAnalysis.isPending}
+								>
 									<Save className="h-4 w-4" />
-									Simpan Hasil
+									{runAnalysis.isPending ? "Menyimpan..." : "Simpan Hasil"}
 								</Button>
 							</div>
 
 							{showSteps && results && methodStepDetails && (
-								<div className="mt-6 space-y-4">
-									<Card>
-										<CardHeader>
-											<CardTitle className="flex items-center justify-between gap-3">
-												<span>
-													Langkah-langkah Perhitungan{" "}
-													{methodName}
-												</span>
-												<Button
-													variant="outline"
-													size="icon"
-													className="h-7 w-7 text-xs font-bold"
-													title="Lihat rumus dan hasil"
-													aria-label="Lihat rumus dan hasil"
-													onClick={() =>
-														setShowFormulaPopup(true)
-													}
-												>
-													!
-												</Button>
-											</CardTitle>
-										</CardHeader>
-										<CardContent className="space-y-6">
-											<div>
-												<h4 className="mb-2 font-semibold">
-													Langkah 1 : Menentukan alternatif
-												</h4>
-												<ul className="list-disc space-y-1 pl-5 text-sm">
-													{alternatives.map((alt) => (
-														<li key={alt.id}>{alt.name}</li>
-													))}
-												</ul>
-											</div>
+								<MethodStepsExplorer
+									methodName={methodName}
+									methodStepDetails={methodStepDetails}
+									criteria={criteria}
+									alternatives={alternatives}
+									matrix={matrix}
+									results={results}
+									isVikor={method === "vikor"}
+									step5Note={
+										isWeightEnabled
+											? "Bobot input akan dinormalisasi agar total bobot = 1 sebelum perhitungan."
+											: "Bobot dinonaktifkan. Sistem memakai bobot sama rata (w_j = 1/n)."
+									}
+									step5Formula={
+										isWeightEnabled
+											? "w_j' = w_j / sum_j w_j"
+											: "w_j = 1 / n"
+									}
+									step5Rows={criteria.map((crit, index) => ({
+										name: crit.name,
+										inputLabel: isWeightEnabled
+											? `${formatNumber(getDisplayWeight(crit.weight), 4)}${
+												weightMode === "percentage" ? "%" : ""
+											}`
+											: "-",
+										usedLabel: formatNumber(effectiveWeights[index] ?? 0, 4),
+									}))}
+								/>
+							)}
 
-											<div>
-												<h4 className="mb-2 font-semibold">
-													Langkah 2 : Menentukan kriteria
-												</h4>
-												<ul className="list-disc space-y-1 pl-5 text-sm">
-													{criteria.map((crit) => (
-														<li key={crit.id}>
-															{crit.name} ({crit.type})
-														</li>
-													))}
-												</ul>
-											</div>
-
-											<div>
-												<h4 className="mb-2 font-semibold">
-													Langkah 3 : Menentukan nilai setiap
-													kriteria untuk setiap alternatif
-												</h4>
-												<div className="overflow-x-auto">
-													<table className="w-full border-collapse text-sm">
-														<thead>
-															<tr>
-																<th className="border p-2 text-left">
-																	Alternatif
-																</th>
-																{criteria.map((c) => (
-																	<th
-																		key={c.id}
-																		className="border p-2 text-center"
-																	>
-																		{c.name}
-																	</th>
-																))}
-															</tr>
-														</thead>
-														<tbody>
-															{alternatives.map(
-																(alt, i) => (
-																	<tr key={alt.id}>
-																		<td className="border p-2 font-medium">
-																			{alt.name}
-																		</td>
-																		{criteria.map(
-																			(crit, j) => (
-																				<td
-																					key={crit.id}
-																					className="border p-2 text-center"
-																				>
-																					{formatNumber(
-																						stepMatrix[i][j] ?? 0,
-																						4,
-																					)}
-																				</td>
-																			),
-																		)}
-																	</tr>
-																),
-															)}
-														</tbody>
-													</table>
-												</div>
-											</div>
-
-											<div className="space-y-3">
-												<h4 className="mb-2 font-semibold">
-													Langkah 4 :{" "}
-													{methodStepDetails.step4Title}
-												</h4>
-												<p className="text-sm text-muted-foreground">
-													Rumus tersedia di tombol "!".
-												</p>
-												{methodStepDetails.step4Notes?.map(
-													(note, index) => (
-														<p
-															key={`${note}-${index}`}
-															className="text-sm text-muted-foreground"
-														>
-															{note}
-														</p>
-													),
-												)}
-												{methodStepDetails.step4Tables.map(
-													(table, tableIndex) => (
-														<div
-															key={`${table.title}-${tableIndex}`}
-															className="space-y-2"
-														>
-															<p className="text-sm font-medium">
-																{table.title}
-															</p>
-															<div className="overflow-x-auto">
-																<table className="w-full border-collapse text-sm">
-																	<thead>
-																		<tr>
-																			<th className="border p-2 text-left">
-																				{table.rowHeader ??
-																					"Alternatif"}
-																			</th>
-																			{table.headers.map(
-																				(header) => (
-																					<th
-																						key={`${table.title}-${header}`}
-																						className="border p-2 text-center"
-																					>
-																						{header}
-																					</th>
-																				),
-																		)}
-																	</tr>
-																	</thead>
-																	<tbody>
-																		{table.rows.map(
-																				(
-																					row,
-																					rowIndex,
-																				) => (
-																					<tr
-																						key={`${table.title}-${row.label}-${rowIndex}`}
-																					>
-																						<td className="border p-2 font-medium">
-																							{row.label}
-																						</td>
-																						{row.values.map(
-																							(
-																							value,
-																							valueIndex,
-																						) => (
-																							<td
-																								key={`${table.title}-${row.label}-${valueIndex}`}
-																								className="border p-2 text-center"
-																							>
-																								{formatNumber(
-																									value,
-																								table.digits ??
-																										4,
-																								)}
-																							</td>
-																						),
-																					)}
-																				</tr>
-																			),
-																		)}
-																	</tbody>
-															</table>
-														</div>
-														</div>
-													),
-												)}
-											</div>
-
-											<div>
-												<h4 className="mb-2 font-semibold">
-													Langkah 5 : Menentukan bobot setiap
-													kriteria
-												</h4>
-												{isWeightEnabled ? (
-													<p className="mb-2 text-sm text-muted-foreground">
-														Bobot input akan dinormalisasi agar
-														total bobot = 1 sebelum perhitungan.
-													</p>
-												) : (
-													<p className="mb-2 text-sm text-muted-foreground">
-														Bobot dinonaktifkan. Sistem memakai
-														bobot sama rata (w_j = 1/n).
-													</p>
-												)}
-												<div className="overflow-x-auto">
-													<table className="w-full border-collapse text-sm">
-														<thead>
-															<tr>
-																<th className="border p-2 text-left">
-																	Kriteria
-																</th>
-																<th className="border p-2 text-center">
-																	Bobot input
-																</th>
-																<th className="border p-2 text-center">
-																	Bobot dipakai (w_j)
-																</th>
-															</tr>
-														</thead>
-														<tbody>
-															{criteria.map(
-																(crit, index) => (
-																	<tr key={crit.id}>
-																		<td className="border p-2">
-																			{crit.name}
-																		</td>
-																		<td className="border p-2 text-center">
-																			{isWeightEnabled
-																				? `${formatNumber(
-																					getDisplayWeight(
-																						crit.weight,
-																					),
-																					4,
-																					)}${weightMode === "percentage" ? "%" : ""}`
-																				: "-"}
-																		</td>
-																		<td className="border p-2 text-center">
-																				{formatNumber(
-																						effectiveWeights[index] ?? 0,
-																						4,
-																					)}
-																		</td>
-																	</tr>
-																),
-															)}
-														</tbody>
-													</table>
-												</div>
-											</div>
-
-											<div className="space-y-3">
-												<h4 className="mb-2 font-semibold">
-													Langkah 6 :{" "}
-													{methodStepDetails.step6Title}
-												</h4>
-												<p className="text-sm text-muted-foreground">
-													Rumus tersedia di tombol "!".
-												</p>
-												{methodStepDetails.step6Notes?.map(
-													(note, index) => (
-														<p
-															key={`${note}-${index}`}
-															className="text-sm text-muted-foreground"
-														>
-															{note}
-														</p>
-													),
-												)}
-												<div className="space-y-2">
-													<p className="text-sm font-medium">
-														{methodStepDetails.step6Table.title}
-													</p>
-													<div className="overflow-x-auto">
-														<table className="w-full border-collapse text-sm">
-															<thead>
-																<tr>
-																	<th className="border p-2 text-left">
-																		{methodStepDetails
-																			.step6Table
-																			.rowHeader ??
-																				"Alternatif"}
-																	</th>
-																	{methodStepDetails.step6Table.headers.map(
-																		(header) => (
-																			<th
-																				key={`step6-${header}`}
-																				className="border p-2 text-center"
-																			>
-																					{header}
-																				</th>
-																		),
-																	)}
-															</tr>
-															</thead>
-															<tbody>
-																{methodStepDetails.step6Table.rows.map(
-																		(
-																			row,
-																			rowIndex,
-																		) => (
-																			<tr
-																				key={`step6-${row.label}-${rowIndex}`}
-																			>
-																				<td className="border p-2 font-medium">
-																					{row.label}
-																				</td>
-																				{row.values.map(
-																					(
-																						value,
-																						valueIndex,
-																					) => (
-																						<td
-																							key={`step6-${row.label}-${valueIndex}`}
-																							className="border p-2 text-center"
-																						>
-																							{formatNumber(
-																								value,
-																								methodStepDetails
-																									.step6Table
-																									.digits ??
-																										4,
-																								)}
-																						</td>
-																					),
-																				)}
-																			</tr>
-																		),
-																	)}
-															</tbody>
-														</table>
-													</div>
-												</div>
-											</div>
-
-											<div>
-												<h4 className="mb-2 font-semibold">
-													Langkah 7 : Hasil
-												</h4>
-												<table className="w-full border-collapse text-sm">
-													<thead>
-														<tr>
-															<th className="border p-2 text-center">
-																Rank
-															</th>
-															<th className="border p-2 text-left">
-																Alternatif
-															</th>
-															<th className="border p-2 text-center">
-																Skor
-															</th>
-														</tr>
-													</thead>
-													<tbody>
-														{results.map(
-															(r) => (
-																<tr key={r.alternativeId}>
-																	<td className="border p-2 text-center font-bold">
-																		{r.rank}
-																	</td>
-																	<td className="border p-2">
-																		{r.alternativeName}
-																	</td>
-																	<td className="border p-2 text-center">
-																		{formatNumber(
-																			r.score,
-																			6,
-																			)}
-																	</td>
-																</tr>
-															),
-															)}
-													</tbody>
-												</table>
-											</div>
-										</CardContent>
-									</Card>
-
-									{showFormulaPopup && (
-										<div
-											className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-											onClick={() => setShowFormulaPopup(false)}
-										>
-											<div
-												className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-lg border bg-background p-4 shadow-xl"
-												onClick={(e) => e.stopPropagation()}
-											>
-												<div className="mb-4 flex items-center justify-between gap-3">
-													<h3 className="text-lg font-semibold">
-														Rumus & Hasil Perhitungan{" "}
-														{methodName}
-													</h3>
-													<Button
-														variant="outline"
-														onClick={() =>
-															setShowFormulaPopup(false)
-														}
-													>
-														Tutup
-													</Button>
-												</div>
-
-												<div className="space-y-6">
-													<div className="space-y-2">
-														<h4 className="font-semibold">
-															Langkah 1 : Menentukan
-															alternatif
-														</h4>
-														<pre className="overflow-x-auto rounded-lg bg-muted p-3 text-sm">
-															<code>
-																A ={" "}
-																{"{A_1, A_2, ..., A_m}"}
-															</code>
-														</pre>
-														<p className="text-sm text-muted-foreground">
-																m = {alternatives.length}{" "}
-																alternatif:{" "}
-																{alternatives
-																	.map(
-																		(alt) =>
-																			alt.name,
-																	)
-																	.join(", ")}
-															</p>
-													</div>
-
-													<div className="space-y-2">
-														<h4 className="font-semibold">
-															Langkah 2 : Menentukan
-															kriteria
-															</h4>
-														<pre className="overflow-x-auto rounded-lg bg-muted p-3 text-sm">
-															<code>
-																C ={" "}
-																{"{C_1, C_2, ..., C_n}"}
-															</code>
-														</pre>
-														<p className="text-sm text-muted-foreground">
-																n = {criteria.length}{" "}
-																kriteria:{" "}
-																{criteria
-																	.map(
-																		(crit) =>
-																			`${crit.name} (${crit.type})`,
-																	)
-																	.join(", ")}
-															</p>
-													</div>
-
-													<div className="space-y-2">
-														<h4 className="font-semibold">
-															Langkah 3 : Menentukan nilai
-															setiap kriteria untuk
-															setiap alternatif
-														</h4>
-														<pre className="overflow-x-auto rounded-lg bg-muted p-3 text-sm">
-															<code>
-																X = [x_ij], i = 1..m, j
-																= 1..n
-															</code>
-														</pre>
-														<div className="overflow-x-auto">
-															<table className="w-full border-collapse text-sm">
-																<thead>
-																	<tr>
-																		<th className="border p-2 text-left">
-																			Alternatif
-																		</th>
-																		{criteria.map(
-																			(c) => (
-																				<th
-																					key={`popup-step3-${c.id}`}
-																					className="border p-2 text-center"
-																				>
-																					{c.name}
-																				</th>
-																			),
-																		)}
-																	</tr>
-																</thead>
-																<tbody>
-																	{alternatives.map(
-																		(alt, i) => (
-																			<tr
-																				key={`popup-step3-${alt.id}`}
-																				>
-																				<td className="border p-2 font-medium">
-																					{alt.name}
-																				</td>
-																				{criteria.map(
-																				(
-																					crit,
-																					j,
-																				) => (
-																					<td
-																						key={`popup-step3-${alt.id}-${crit.id}`}
-																						className="border p-2 text-center"
-																					>
-																							{formatNumber(
-																									stepMatrix[i][j] ?? 0,
-																									4,
-																								)}
-																					</td>
-																				),
-																				)}
-																			</tr>
-																		),
-																	)}
-																</tbody>
-															</table>
-														</div>
-													</div>
-
-													<div className="space-y-3">
-														<h4 className="font-semibold">
-															Langkah 4 :{" "}
-															{
-																methodStepDetails.step4Title
-															}
-															</h4>
-														<pre className="overflow-x-auto rounded-lg bg-muted p-3 text-sm">
-															<code>
-																{methodStepDetails.step4Formula.join(
-																	"\n",
-																)}
-															</code>
-														</pre>
-														{methodStepDetails.step4Notes?.map(
-															(
-																note,
-																index,
-															) => (
-																<p
-																	key={`popup-step4-note-${index}`}
-																	className="text-sm text-muted-foreground"
-																>
-																	{note}
-																</p>
-															),
-															)}
-														{methodStepDetails.step4Tables.map(
-																(
-																	table,
-																	tableIndex,
-																) => (
-																	<div
-																		key={`popup-step4-table-${tableIndex}`}
-																		className="space-y-2"
-																	>
-																		<p className="text-sm font-medium">
-																			{
-																				table.title
-																			}
-																		</p>
-																		<div className="overflow-x-auto">
-																			<table className="w-full border-collapse text-sm">
-																				<thead>
-																					<tr>
-																						<th className="border p-2 text-left">
-																							{table.rowHeader ??
-																								"Alternatif"}
-																						</th>
-																						{table.headers.map(
-																							(
-																								header,
-																							) => (
-																								<th
-																									key={`popup-step4-${tableIndex}-${header}`}
-																									className="border p-2 text-center"
-																								>
-																									{header}
-																								</th>
-																							),
-																						)}
-																					</tr>
-																					</thead>
-																					<tbody>
-																						{table.rows.map(
-																							(
-																								row,
-																								rowIndex,
-																							) => (
-																								<tr
-																									key={`popup-step4-${tableIndex}-${rowIndex}`}
-																								>
-																									<td className="border p-2 font-medium">
-																										{row.label}
-																									</td>
-																									{row.values.map(
-																										(
-																										value,
-																										valueIndex,
-																									) => (
-																										<td
-																											key={`popup-step4-${tableIndex}-${rowIndex}-${valueIndex}`}
-																											className="border p-2 text-center"
-																										>
-																											{formatNumber(
-																												value,
-																												table.digits ??
-																													4,
-																											)}
-																										</td>
-																									),
-																									)}
-																								</tr>
-																								),
-																							)}
-																						</tbody>
-																				</table>
-																			</div>
-																		</div>
-																	),
-																)}
-														</div>
-
-													<div className="space-y-2">
-														<h4 className="font-semibold">
-															Langkah 5 : Menentukan bobot
-															setiap kriteria
-															</h4>
-														<pre className="overflow-x-auto rounded-lg bg-muted p-3 text-sm">
-															<code>
-																{isWeightEnabled
-																	? "w_j' = w_j / sum_j w_j"
-																	: "w_j = 1 / n"}
-															</code>
-														</pre>
-														{isWeightEnabled ? (
-																<p className="text-sm text-muted-foreground">
-																	Total bobot input:{" "}
-																	{formatNumber(
-																		displayedWeightTotal,
-																		4,
-																	)}
-																	{weightMode === "percentage"
-																		? "%"
-																		: ""}
-																</p>
-															) : (
-																<p className="text-sm text-muted-foreground">
-																	Bobot dinonaktifkan. Sistem memakai
-																	bobot sama rata (w_j = 1/n).
-																</p>
-															)}
-														<div className="overflow-x-auto">
-															<table className="w-full border-collapse text-sm">
-																<thead>
-																	<tr>
-																		<th className="border p-2 text-left">
-																			Kriteria
-																		</th>
-																		<th className="border p-2 text-center">
-																			Bobot input
-																		</th>
-																		<th className="border p-2 text-center">
-																			Bobot dipakai
-																			(w_j)
-																		</th>
-																	</tr>
-																</thead>
-																<tbody>
-																	{criteria.map(
-																		(crit, index) => (
-																			<tr
-																				key={`popup-step5-${crit.id}`}
-																				>
-																					<td className="border p-2">
-																						{crit.name}
-																					</td>
-																					<td className="border p-2 text-center">
-																						{isWeightEnabled
-																							? `${formatNumber(
-																								getDisplayWeight(
-																									crit.weight,
-																								),
-																								4,
-																							)}${weightMode === "percentage" ? "%" : ""}`
-																							: "-"}
-																						</td>
-																					<td className="border p-2 text-center">
-																										{formatNumber(
-																												effectiveWeights[index] ?? 0,
-																												4,
-																											)}
-																					</td>
-																				</tr>
-																		),
-																		)}
-																</tbody>
-															</table>
-														</div>
-													</div>
-
-													<div className="space-y-3">
-														<h4 className="font-semibold">
-															Langkah 6 :{" "}
-															{
-																methodStepDetails.step6Title
-															}
-															</h4>
-														<pre className="overflow-x-auto rounded-lg bg-muted p-3 text-sm">
-															<code>
-																{methodStepDetails.step6Formula.join(
-																	"\n",
-																)}
-															</code>
-														</pre>
-														{methodStepDetails.step6Notes?.map(
-															(
-																note,
-																index,
-															) => (
-																<p
-																	key={`popup-step6-note-${index}`}
-																	className="text-sm text-muted-foreground"
-																>
-																	{note}
-																</p>
-															),
-															)}
-														<div className="space-y-2">
-															<p className="text-sm font-medium">
-																{
-																	methodStepDetails
-																		.step6Table
-																		.title
-																}
-															</p>
-															<div className="overflow-x-auto">
-																<table className="w-full border-collapse text-sm">
-																	<thead>
-																		<tr>
-																			<th className="border p-2 text-left">
-																				{methodStepDetails.step6Table.rowHeader ??
-																					"Alternatif"}
-																			</th>
-																			{methodStepDetails.step6Table.headers.map(
-																				(
-																					header,
-																				) => (
-																					<th
-																						key={`popup-step6-${header}`}
-																						className="border p-2 text-center"
-																					>
-																						{header}
-																					</th>
-																					),
-																				)}
-																		</tr>
-																	</thead>
-																	<tbody>
-																		{methodStepDetails.step6Table.rows.map(
-																				(
-																					row,
-																					rowIndex,
-																				) => (
-																					<tr
-																						key={`popup-step6-row-${rowIndex}`}
-																					>
-																						<td className="border p-2 font-medium">
-																							{row.label}
-																						</td>
-																						{row.values.map(
-																							(
-																								value,
-																								valueIndex,
-																							) => (
-																								<td
-																									key={`popup-step6-${rowIndex}-${valueIndex}`}
-																									className="border p-2 text-center"
-																								>
-																									{formatNumber(
-																										value,
-																										methodStepDetails
-																												.step6Table
-																												.digits ??
-																												4,
-																										)}
-																								</td>
-																							),
-																						)}
-																						</tr>
-																					),
-																					)}
-																				</tbody>
-																	</table>
-															</div>
-														</div>
-													</div>
-
-													<div className="space-y-2">
-														<h4 className="font-semibold">
-															Langkah 7 : Hasil
-															</h4>
-														<pre className="overflow-x-auto rounded-lg bg-muted p-3 text-sm">
-															<code>
-																{method === "vikor"
-																	? "Urutkan Q_i dari terkecil ke terbesar"
-																	: "Urutkan skor dari terbesar ke terkecil"}
-															</code>
-														</pre>
-														<table className="w-full border-collapse text-sm">
-															<thead>
-																<tr>
-																	<th className="border p-2 text-center">
-																		Rank
-																	</th>
-																	<th className="border p-2 text-left">
-																		Alternatif
-																	</th>
-																	<th className="border p-2 text-center">
-																		Skor
-																	</th>
-																</tr>
-															</thead>
-															<tbody>
-																{results.map(
-																	(r) => (
-																		<tr
-																			key={`popup-step7-${r.alternativeId}`}
-																			>
-																				<td className="border p-2 text-center font-bold">
-																					{r.rank}
-																				</td>
-																					<td className="border p-2">
-																						{r.alternativeName}
-																					</td>
-																					<td className="border p-2 text-center">
-																						{formatNumber(
-																							r.score,
-																							6,
-																						)}
-																					</td>
-																				</tr>
-																		),
-																	)}
-																</tbody>
-															</table>
-														</div>
-												</div>
-											</div>
-										</div>
-									)}
-								</div>
-								)}
 							</CardContent>
 						</Card>
 					)}

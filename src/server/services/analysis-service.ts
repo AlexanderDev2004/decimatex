@@ -1,5 +1,5 @@
 import { Data, Effect } from "effect"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { db } from "../db/client"
 import {
 	analysisRuns,
@@ -7,6 +7,7 @@ import {
 	alternatives,
 	criteria,
 	decisionMatrixValues,
+	methods,
 } from "../db/schema"
 import { runMethod } from "../../features/decision/lib/methods"
 
@@ -17,6 +18,20 @@ export class AnalysisRunError extends Data.TaggedError("AnalysisRunError")<{
 export const runAnalysis = Effect.fn("runAnalysis")(
 	(decisionId: string, methodCode: string) =>
 		Effect.gen(function* () {
+			// Resolve kode metode case-insensitive (frontend mengirim lowercase,
+			// sedangkan methods.code tersimpan uppercase, mis. "ahp" → "AHP").
+			const methodRow = yield* Effect.promise(() =>
+				db.query.methods.findFirst({
+					where: sql`lower(${methods.code}) = ${methodCode.toLowerCase()}`,
+				}),
+			)
+			if (!methodRow) {
+				return yield* Effect.fail(
+					new AnalysisRunError({ message: `Unknown method: ${methodCode}` }),
+				)
+			}
+			const canonicalMethodCode = methodRow.code
+
 			const criteriaItems = yield* Effect.promise(() =>
 				db.query.criteria.findMany({
 					where: eq(criteria.decisionId, decisionId),
@@ -80,7 +95,7 @@ export const runAnalysis = Effect.fn("runAnalysis")(
 					.insert(analysisRuns)
 					.values({
 						decisionId,
-						methodCode,
+						methodCode: canonicalMethodCode,
 						parameters: {},
 						matrixSnapshot,
 						status: "completed",

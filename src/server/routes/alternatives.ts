@@ -5,8 +5,8 @@ import {
 	getAlternativesByDecision,
 	updateAlternative,
 	deleteAlternative,
-	AlternativeNotFoundError,
 } from "../services/alternative-service"
+import { unwrapEffectError } from "./effect-error"
 
 const alternatives = new Hono()
 
@@ -44,7 +44,8 @@ alternatives.patch("/:alternativeId", async (c) => {
 		const item = await run(updateAlternative(id, body))
 		return c.json(item)
 	} catch (error) {
-		if (error instanceof AlternativeNotFoundError) {
+		const err = unwrapEffectError(error) as { _tag?: string } | undefined
+		if (err?._tag === "AlternativeNotFoundError") {
 			return c.json({ error: "Alternative not found" }, 404)
 		}
 		return c.json({ error: "Internal server error" }, 500)

@@ -38,6 +38,7 @@ function History() {
 				<div className="mb-6 flex items-center gap-3">
 					<Search className="h-4 w-4 text-muted-foreground" />
 					<Input
+						id="history-search"
 						placeholder="Cari keputusan..."
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
@@ -48,7 +49,7 @@ function History() {
 				{isLoading ? (
 					<p className="text-muted-foreground">Memuat...</p>
 				) : filtered && filtered.length > 0 ? (
-					<div className="grid gap-4">
+					<div id="history-list" className="grid gap-4">
 						{filtered.map((decision) => (
 							<Card
 								key={decision.id}

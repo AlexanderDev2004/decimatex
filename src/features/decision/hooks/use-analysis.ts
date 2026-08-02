@@ -8,6 +8,23 @@ export interface AnalysisRun {
 	methodCode: string
 	status: string
 	createdAt: Date | string
+	matrixSnapshot?: {
+		criteria: Array<{
+			id: string
+			name: string
+			type: "benefit" | "cost"
+			weight: number
+		}>
+		alternatives: Array<{
+			id: string
+			name: string
+		}>
+		matrix: Array<{
+			alternativeId: string
+			criteriaId: string
+			value: number
+		}>
+	}
 	results?: Array<{
 		alternativeId: string
 		score: string

@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useCreateDecision } from "@/features/decision/hooks/use-decisions"
 import {
   Card,
   CardContent,
@@ -72,10 +73,18 @@ function SelectMethod() {
   const navigate = useNavigate()
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null)
   const [decisionName, setDecisionName] = useState("")
+  const createDecision = useCreateDecision()
 
-  const handleContinue = () => {
-    if (selectedMethod && decisionName) {
-      navigate(`/decision/matrix?method=${selectedMethod}&name=${encodeURIComponent(decisionName)}`)
+  const handleContinue = async () => {
+    if (selectedMethod && decisionName && !createDecision.isPending) {
+      try {
+        const decision = await createDecision.mutateAsync({
+          name: decisionName,
+        })
+        navigate(`/decision/matrix?method=${selectedMethod}&name=${encodeURIComponent(decisionName)}&decisionId=${decision.id}`)
+      } catch (error) {
+        console.error("Failed to create decision:", error)
+      }
     }
   }
 
@@ -108,6 +117,7 @@ function SelectMethod() {
             </CardHeader>
             <CardContent>
               <Input 
+                id="decision-name-input"
                 placeholder="Contoh: Pemilihan Supplier Bahan Baku" 
                 value={decisionName}
                 onChange={(e) => setDecisionName(e.target.value)}
@@ -120,7 +130,7 @@ function SelectMethod() {
               <Calculator className="h-5 w-5" />
               Pilih Metode DSS
             </h2>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div id="method-grid" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {methods.map((method) => (
                 <Card 
                   key={method.id}
@@ -148,12 +158,13 @@ function SelectMethod() {
 
           <div className="flex justify-center">
             <Button 
+              id="continue-button"
               size="lg" 
               className="gap-2"
-              disabled={!selectedMethod || !decisionName}
+              disabled={!selectedMethod || !decisionName || createDecision.isPending}
               onClick={handleContinue}
             >
-              Lanjutkan <ArrowRight className="h-4 w-4" />
+              {createDecision.isPending ? "Membuat..." : "Lanjutkan"} <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </div>

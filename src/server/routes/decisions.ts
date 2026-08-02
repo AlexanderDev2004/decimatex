@@ -6,8 +6,8 @@ import {
 	getProblemById,
 	updateProblem,
 	deleteProblem,
-	DecisionNotFoundError,
 } from "../services/decision-service"
+import { unwrapEffectError } from "./effect-error"
 
 const decisions = new Hono()
 
@@ -40,7 +40,8 @@ decisions.get("/:id", async (c) => {
 		const problem = await run(getProblemById(id))
 		return c.json(problem)
 	} catch (error) {
-		if (error instanceof DecisionNotFoundError) {
+		const err = unwrapEffectError(error) as { _tag?: string } | undefined
+		if (err?._tag === "DecisionNotFoundError") {
 			return c.json({ error: "Decision not found" }, 404)
 		}
 		return c.json({ error: "Internal server error" }, 500)
@@ -55,7 +56,8 @@ decisions.patch("/:id", async (c) => {
 		const problem = await run(updateProblem(id, body))
 		return c.json(problem)
 	} catch (error) {
-		if (error instanceof DecisionNotFoundError) {
+		const err = unwrapEffectError(error) as { _tag?: string } | undefined
+		if (err?._tag === "DecisionNotFoundError") {
 			return c.json({ error: "Decision not found" }, 404)
 		}
 		return c.json({ error: "Internal server error" }, 500)

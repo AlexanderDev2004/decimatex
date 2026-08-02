@@ -20,7 +20,15 @@ import {
 import {
 	useAnalysisHistory,
 } from "@/features/decision/hooks/use-analysis"
-import { ArrowLeft, BarChart3 } from "lucide-react"
+import {
+	createMethodStepDetails,
+	formatNumber,
+	normalizeWeights,
+	METHOD_NAMES,
+} from "@/features/decision/lib/methods"
+import type { RankingResult } from "@/features/decision/lib/methods"
+import MethodStepsExplorer from "@/components/method-steps"
+import { ArrowLeft, BarChart3, Pencil } from "lucide-react"
 
 function HistoryDetail() {
 	const { id } = useParams<{ id: string }>()
@@ -46,6 +54,48 @@ function HistoryDetail() {
 
 	const latestAnalysis = analysisHistory?.[0]
 
+	// Bangun ulang langkah-langkah perhitungan dari snapshot yang tersimpan
+	// saat analisis dijalankan (data persis seperti saat itu).
+	const snapshot = latestAnalysis?.matrixSnapshot
+	const snapshotCriteria = snapshot?.criteria ?? []
+	const snapshotAlternatives = snapshot?.alternatives ?? []
+	const snapshotMatrix = snapshot?.matrix ?? []
+	const snapshotMethod = latestAnalysis?.methodCode.toLowerCase() ?? ""
+	const stepDetails =
+		snapshotMethod &&
+		snapshotCriteria.length >= 2 &&
+		snapshotAlternatives.length >= 2
+			? createMethodStepDetails(
+					snapshotMethod,
+					snapshotCriteria,
+					snapshotAlternatives,
+					snapshotMatrix,
+					snapshotCriteria.map((c) => c.weight),
+				)
+			: null
+
+	const snapshotResults: RankingResult[] =
+		latestAnalysis?.results?.map((r) => ({
+			alternativeId: r.alternativeId,
+			alternativeName: r.alternative?.name ?? r.alternativeId,
+			score: Number.parseFloat(r.score),
+			rank: r.rank,
+		})) ?? []
+
+	const snapshotWeights = normalizeWeights(
+		snapshotCriteria.map((c) => c.weight),
+		snapshotCriteria.length,
+	)
+
+	const handleEdit = () => {
+		const methodCode = latestAnalysis?.methodCode.toLowerCase() ?? "topsis"
+		navigate(
+			`/decision/matrix?method=${methodCode}&name=${encodeURIComponent(
+				decision.name,
+			)}&decisionId=${decision.id}`,
+		)
+	}
+
 	return (
 		<main className="min-h-screen bg-background">
 			<div className="container mx-auto px-4 py-8">
@@ -57,12 +107,18 @@ function HistoryDetail() {
 					<ArrowLeft className="h-4 w-4" /> Kembali
 				</Button>
 
-				<div className="mb-8">
-					<h1 className="text-2xl font-bold">{decision.name}</h1>
-					<p className="text-muted-foreground">
-						Dibuat pada{" "}
-						{new Date(decision.createdAt).toLocaleDateString("id-ID")}
-					</p>
+				<div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+					<div>
+						<h1 className="text-2xl font-bold">{decision.name}</h1>
+						<p className="text-muted-foreground">
+							Dibuat pada{" "}
+							{new Date(decision.createdAt).toLocaleDateString("id-ID")}
+						</p>
+					</div>
+					<Button onClick={handleEdit} className="gap-2">
+						<Pencil className="h-4 w-4" />
+						Edit Keputusan
+					</Button>
 				</div>
 
 				<div className="mb-8 grid gap-6 md:grid-cols-3">
@@ -177,7 +233,7 @@ function HistoryDetail() {
 				)}
 
 				{latestAnalysis && (
-					<Card>
+					<Card className="mb-6">
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
 								<BarChart3 className="h-5 w-5" />
@@ -224,6 +280,30 @@ function HistoryDetail() {
 							)}
 						</CardContent>
 					</Card>
+				)}
+
+				{latestAnalysis && stepDetails && (
+					<MethodStepsExplorer
+						methodName={
+							METHOD_NAMES[snapshotMethod] ??
+							latestAnalysis.methodCode
+						}
+						methodStepDetails={stepDetails}
+						criteria={snapshotCriteria}
+						alternatives={snapshotAlternatives}
+						matrix={snapshotMatrix}
+						results={snapshotResults}
+						isVikor={snapshotMethod === "vikor"}
+						step5Note="Bobot yang tersimpan pada saat analisis dijalankan (ternormalisasi)."
+						step5Rows={snapshotCriteria.map((crit, index) => ({
+							name: crit.name,
+							inputLabel: formatNumber(crit.weight, 4),
+							usedLabel: formatNumber(
+								snapshotWeights[index] ?? 0,
+								4,
+							),
+						}))}
+					/>
 				)}
 			</div>
 		</main>

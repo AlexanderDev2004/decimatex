@@ -6,8 +6,8 @@ import {
 	updateCriteriaWeight,
 	deleteCriteria,
 	normalizeCriteriaWeights,
-	CriteriaNotFoundError,
 } from "../services/criteria-service"
+import { unwrapEffectError } from "./effect-error"
 
 const criteria = new Hono()
 
@@ -45,7 +45,8 @@ criteria.patch("/:criteriaId", async (c) => {
 		const item = await run(updateCriteriaWeight(id, body.weight))
 		return c.json(item)
 	} catch (error) {
-		if (error instanceof CriteriaNotFoundError) {
+		const err = unwrapEffectError(error) as { _tag?: string } | undefined
+		if (err?._tag === "CriteriaNotFoundError") {
 			return c.json({ error: "Criteria not found" }, 404)
 		}
 		return c.json({ error: "Internal server error" }, 500)

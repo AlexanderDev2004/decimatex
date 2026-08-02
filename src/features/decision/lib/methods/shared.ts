@@ -35,10 +35,18 @@ export interface StepTable {
 }
 
 export interface MethodStepDetails {
+	step3Title?: string
+	step3Formula?: string[]
+	step3Tables?: StepTable[]
+	step3Notes?: string[]
 	step4Title: string
 	step4Formula: string[]
 	step4Tables: StepTable[]
 	step4Notes?: string[]
+	step5Title?: string
+	step5Formula?: string[]
+	step5Table?: StepTable
+	step5Notes?: string[]
 	step6Title: string
 	step6Formula: string[]
 	step6Table: StepTable

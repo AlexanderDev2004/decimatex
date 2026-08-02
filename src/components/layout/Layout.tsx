@@ -1,10 +1,12 @@
 import { Outlet, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { BarChart3, Plus, History } from "lucide-react"
+import { BarChart3, Plus, History, GraduationCap } from "lucide-react"
 import { Link } from "react-router-dom"
+import { useTutorial } from "@/features/tutorial/use-tutorial"
 
 function Navbar() {
 	const location = useLocation()
+	const { startTutorial } = useTutorial()
 	const isActive = (path: string) => location.pathname === path
 
 	return (
@@ -16,6 +18,18 @@ function Navbar() {
 				</Link>
 				<div className="flex items-center gap-2">
 					<Button
+						variant="ghost"
+						size="sm"
+						onClick={startTutorial}
+						className="gap-1.5"
+						title="Lihat tutorial penggunaan aplikasi"
+						aria-label="Lihat tutorial"
+					>
+						<GraduationCap className="h-4 w-4" />
+						Tutorial
+					</Button>
+					<Button
+						id="nav-create"
 						variant={isActive("/decision") ? "default" : "ghost"}
 						size="sm"
 						asChild
@@ -26,6 +40,7 @@ function Navbar() {
 						</Link>
 					</Button>
 					<Button
+						id="nav-history"
 						variant={isActive("/history") ? "default" : "ghost"}
 						size="sm"
 						asChild

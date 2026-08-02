@@ -3,8 +3,8 @@ import { Effect } from "effect"
 import {
 	runAnalysis,
 	getAnalysisHistory,
-	AnalysisRunError,
 } from "../services/analysis-service"
+import { unwrapEffectError } from "./effect-error"
 
 const analysis = new Hono()
 
@@ -21,8 +21,9 @@ analysis.post("/run", async (c) => {
 		const result = await run(runAnalysis(decisionId, methodCode))
 		return c.json(result)
 	} catch (error) {
-		if (error instanceof AnalysisRunError) {
-			return c.json({ error: error.message }, 400)
+		const err = unwrapEffectError(error) as { _tag?: string; message?: string } | undefined
+		if (err?._tag === "AnalysisRunError") {
+			return c.json({ error: err.message ?? "Analysis failed" }, 400)
 		}
 		return c.json({ error: "Internal server error" }, 500)
 	}

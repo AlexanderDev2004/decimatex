@@ -303,7 +303,7 @@ function Learn() {
               </p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div id="learn-list" className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {methods.map((method) => (
                 <Card 
                   key={method.name} 
