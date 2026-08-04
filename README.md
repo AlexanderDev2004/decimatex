@@ -6,14 +6,19 @@ Platform Sistem Pendukung Keputusan (SPK) yang mengotomatiskan analisis keputusa
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React 19, TypeScript 5, Vite 7 |
+| Frontend | React 19, TypeScript 5, Vite 5 |
 | Styling | Tailwind CSS v4, shadcn/ui |
-| State & Fetching | TanStack Query, React Router DOM |
+| State & Fetching | TanStack Query, React Router DOM v7 |
 | Backend | Hono, Effect-TS |
 | Database | PostgreSQL, Drizzle ORM |
 | Runtime | Bun |
 | Desktop | Electron |
 | Testing | Vitest, Testing Library |
+
+## Prasyarat
+
+- **Bun** (runtime utama — dipakai untuk script, dev server, dan spawn API di Electron)
+- **PostgreSQL** (lokal atau cloud; URL diisi lewat `DATABASE_URL`)
 
 ## Menjalankan Proyek
 
@@ -23,33 +28,49 @@ Platform Sistem Pendukung Keputusan (SPK) yang mengotomatiskan analisis keputusa
 # Install dependencies
 bun install
 
-# Development server (Vite only)
+# Development server (Vite only — API dipanggil lewat proxy /api -> localhost:3000)
 bun run dev
+
+# API backend standalone saja (watch mode, port default 3000)
+bun run dev:api
 
 # Development server + API backend (recommended)
 bun run dev:full
 ```
 
+### Production Build
+
+```bash
+# Type-check + build web
+bun run build
+
+# Preview hasil build
+bun run preview
+```
+
 ### Desktop Development
 
 ```bash
-# Development mode (spawns API server + Vite + Electron)
+# Development mode (spawns API server :34567 + Vite + Electron)
 bun run dev:desktop
 
-# Build and run production desktop
+# Build web (base ./) + run production desktop
 bun run desktop
+
+# Build saja untuk desktop
+bun run build:desktop
 ```
 
 ### Database
 
 ```bash
-# Generate migration
+# Generate migration (hanya saat schema berubah)
 bun run db:generate
 
 # Apply migration
 bun run db:migrate
 
-# Push schema directly (dev only)
+# Push schema langsung ke DB (dev only)
 bun run db:push
 
 # Open Drizzle Studio
@@ -79,43 +100,61 @@ bunx tsc -b
 
 1. Copy `.env.example` menjadi `.env`.
 2. Isi `DATABASE_URL` dengan URL PostgreSQL lokal/cloud.
-3. Jalankan `bun run db:generate`.
-4. Jalankan `bun run db:migrate`.
-5. Jalankan `bun run db:seed` untuk mengisi tabel metode DSS default.
+   - Tanpa `.env`, `drizzle.config.ts` memakai default `postgres://postgres:postgres@localhost:5432/decimatex`.
+3. Jalankan `bun run db:migrate` — migration awal sudah ada di `drizzle/`; `db:generate` hanya dibutuhkan saat schema berubah.
+4. Jalankan `bun run db:seed` untuk mengisi tabel metode DSS default.
 
 ## Arsitektur Project
 
 ```
 decimatex/
 ├── src/
-│   ├── features/decision/
-│   │   ├── lib/methods/          # 9 algoritma DSS modular
-│   │   │   ├── topsis.ts
-│   │   │   ├── edas.ts
-│   │   │   ├── psi.ts
-│   │   │   ├── moora.ts
-│   │   │   ├── vikor.ts
-│   │   │   ├── ahp.ts
-│   │   │   ├── copras.ts
-│   │   │   ├── promethee.ts
-│   │   │   ├── electre.ts
-│   │   │   ├── shared.ts         # Utilities & types
-│   │   │   └── index.ts          # Method registry
-│   │   └── hooks/                # TanStack Query hooks
-│   │       ├── use-decisions.ts
-│   │       ├── use-criteria.ts
-│   │       ├── use-alternatives.ts
-│   │       ├── use-matrix.ts
-│   │       └── use-analysis.ts
+│   ├── main.tsx                  # React entry
+│   ├── App.tsx
+│   ├── router.tsx                # react-router-dom (browser/hash auto-detect)
+│   ├── Home.tsx                  # Halaman utama
+│   ├── Learn.tsx                 # Materi metode
+│   ├── SelectMethod.tsx          # Pilih metode DSS
+│   ├── MatrixPage.tsx            # Input kriteria, alternatif, matriks
+│   ├── routes/
+│   │   ├── History.tsx           # Riwayat analisis
+│   │   └── HistoryDetail.tsx     # Detail hasil analisis
+│   ├── components/
+│   │   ├── layout/Layout.tsx     # Navbar + Outlet wrapper
+│   │   ├── method-steps.tsx      # Step wizard metode
+│   │   └── ui/                   # shadcn/ui components
+│   ├── features/
+│   │   ├── decision/
+│   │   │   ├── lib/methods/      # 9 algoritma DSS modular
+│   │   │   │   ├── topsis.ts
+│   │   │   │   ├── edas.ts
+│   │   │   │   ├── psi.ts
+│   │   │   │   ├── moora.ts
+│   │   │   │   ├── vikor.ts
+│   │   │   │   ├── ahp.ts
+│   │   │   │   ├── copras.ts
+│   │   │   │   ├── promethee.ts
+│   │   │   │   ├── electre.ts
+│   │   │   │   ├── shared.ts     # Utilities & types
+│   │   │   │   ├── index.ts      # Method registry
+│   │   │   │   └── *.test.ts     # Unit tests per metode
+│   │   │   └── hooks/            # TanStack Query hooks
+│   │   │       ├── use-decisions.ts
+│   │   │       ├── use-criteria.ts
+│   │   │       ├── use-alternatives.ts
+│   │   │       ├── use-matrix.ts
+│   │   │       └── use-analysis.ts
+│   │   └── tutorial/             # Driver.js guided tour
 │   ├── server/
-│   │   ├── index.ts              # Hono app entry
-│   │   ├── standalone.ts         # Bun.serve standalone
+│   │   ├── index.ts              # Hono app (CORS + /api/health + routes)
+│   │   ├── standalone.ts         # Bun.serve entry (env PORT, default 3000)
 │   │   ├── routes/               # Hono route handlers
 │   │   │   ├── decisions.ts
 │   │   │   ├── criteria.ts
 │   │   │   ├── alternatives.ts
 │   │   │   ├── matrix.ts
-│   │   │   └── analysis.ts
+│   │   │   ├── analysis.ts
+│   │   │   └── effect-error.ts   # Error unwrap helper
 │   │   ├── services/             # Effect-TS business logic
 │   │   │   ├── decision-service.ts
 │   │   │   ├── criteria-service.ts
@@ -124,30 +163,25 @@ decimatex/
 │   │   │   └── analysis-service.ts
 │   │   └── db/
 │   │       ├── client.ts         # Drizzle client
+│   │       ├── index.ts          # Re-export client & schema
 │   │       ├── schema.ts         # PostgreSQL schema
 │   │       └── seed.ts           # Seed script
-│   ├── routes/                   # React pages
-│   │   ├── Home.tsx
-│   │   ├── Learn.tsx
-│   │   ├── SelectMethod.tsx
-│   │   ├── MatrixPage.tsx
-│   │   ├── History.tsx
-│   │   └── HistoryDetail.tsx
-│   ├── components/layout/
-│   │   └── Layout.tsx            # Navbar + Outlet wrapper
-│   ├── components/ui/            # shadcn/ui components
 │   ├── lib/
 │   │   ├── utils.ts              # cn() helper
-│   │   └── api-client.ts       # Typed fetch wrapper
-│   ├── App.tsx
-│   ├── router.tsx
+│   │   └── api-client.ts         # Typed fetch wrapper (Electron-aware)
 │   └── index.css
 ├── electron/
-│   ├── main.cjs                  # Electron main process (spawns API)
+│   ├── main.cjs                  # Electron main process (spawns API :34567)
 │   └── preload.cjs               # IPC preload script
 ├── drizzle/                      # Migration files
+├── public/
+├── .github/workflows/            # CI
 ├── vite.config.ts
 ├── vitest.config.ts
+├── vitest.setup.ts
+├── drizzle.config.ts
+├── components.json
+├── Dockerfile
 └── package.json
 ```
 
@@ -155,6 +189,7 @@ decimatex/
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/api/health` | Health check |
 | GET | `/api/decisions` | List all decisions |
 | POST | `/api/decisions` | Create new decision |
 | GET | `/api/decisions/:id` | Get decision by ID |
@@ -162,10 +197,16 @@ decimatex/
 | DELETE | `/api/decisions/:id` | Delete decision |
 | GET | `/api/decisions/:id/criteria` | List criteria |
 | POST | `/api/decisions/:id/criteria` | Add criteria |
+| PATCH | `/api/decisions/:id/criteria/:criteriaId` | Update criteria weight |
+| DELETE | `/api/decisions/:id/criteria/:criteriaId` | Delete criteria |
+| POST | `/api/decisions/:id/criteria/normalize` | Normalize criteria weights |
 | GET | `/api/decisions/:id/alternatives` | List alternatives |
 | POST | `/api/decisions/:id/alternatives` | Add alternative |
+| PATCH | `/api/decisions/:id/alternatives/:alternativeId` | Update alternative |
+| DELETE | `/api/decisions/:id/alternatives/:alternativeId` | Delete alternative |
 | GET | `/api/decisions/:id/matrix` | Get matrix values |
 | POST | `/api/decisions/:id/matrix` | Save matrix value |
+| DELETE | `/api/decisions/:id/matrix/:alternativeId/:criteriaId` | Delete matrix value |
 | POST | `/api/analysis/run` | Run DSS analysis |
 | GET | `/api/analysis/history/:decisionId` | Get analysis history |
 
@@ -211,6 +252,7 @@ Saat dijalankan sebagai aplikasi desktop:
 - **Renderer** berkomunikasi via IPC untuk mendapatkan port server
 - **API client** auto-detect Electron dan mengarahkan ke `localhost:${port}`
 - Router otomatis memakai hash mode saat dijalankan dari `file://`
+- Mode dev (`bun run dev:desktop`) memuat Vite dev server (`--dev` flag); mode production memuat `dist/index.html`
 
 ## Testing
 
@@ -226,12 +268,15 @@ Tests tersedia untuk:
 - `shared.test.ts` — utilities (`buildMatrix2d`, `normalizeWeights`, `formatNumber`)
 - `topsis.test.ts` — TOPSIS algorithm correctness
 - `edas.test.ts` — EDAS algorithm correctness
+- `ahp.test.ts` — AHP algorithm correctness
+- `psi.test.ts` — PSI algorithm correctness
 
 ## Catatan Penting
 
 - File konfigurasi shadcn: `components.json`
 - CSS utama: `src/index.css`
 - Alias path `@/*` aktif di TypeScript dan Vite
-- Environment variable: `DATABASE_URL` (PostgreSQL)
-- `src/server/standalone.ts` digunakan untuk menjalankan server standalone (production/Electron)
-- `src/server/index.ts` digunakan untuk development dengan Hono middleware
+- Environment variable: `DATABASE_URL` (PostgreSQL); `PORT` untuk server API (default 3000)
+- Vite dev proxy: `/api` → `http://localhost:3000` (lihat `vite.config.ts`)
+- `src/server/index.ts` — definisi app Hono (CORS, health check, route mounting)
+- `src/server/standalone.ts` — entry `Bun.serve`; dipakai `dev:api`, `dev:full`, production, dan Electron
