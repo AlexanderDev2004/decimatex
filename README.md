@@ -1,6 +1,6 @@
 # Decimatex
 
-Platform Sistem Pendukung Keputusan (SPK) yang mengotomatiskan analisis keputusan menggunakan metode MCDM (Multi-Criteria Decision Making). Decimatex mendukung web dan desktop (Electron) dengan backend Hono API + PostgreSQL.
+Decimatex is a Decision Support System (DSS) platform that automates decision analysis using MCDM (Multi-Criteria Decision Making) methods. Decimatex supports web and desktop (Electron) with a Hono API + PostgreSQL backend.
 
 ## Tech Stack
 
@@ -15,12 +15,12 @@ Platform Sistem Pendukung Keputusan (SPK) yang mengotomatiskan analisis keputusa
 | Desktop | Electron |
 | Testing | Vitest, Testing Library |
 
-## Prasyarat
+## Prerequisites
 
-- **Bun** (runtime utama — dipakai untuk script, dev server, dan spawn API di Electron)
-- **PostgreSQL** (lokal atau cloud; URL diisi lewat `DATABASE_URL`)
+- **Bun** (primary runtime — used for scripts, the dev server, and spawning the API in Electron)
+- **PostgreSQL** (local or cloud; URL set via `DATABASE_URL`)
 
-## Menjalankan Proyek
+## Running the Project
 
 ### Web Development
 
@@ -28,10 +28,10 @@ Platform Sistem Pendukung Keputusan (SPK) yang mengotomatiskan analisis keputusa
 # Install dependencies
 bun install
 
-# Development server (Vite only — API dipanggil lewat proxy /api -> localhost:3000)
+# Development server (Vite only — API is called through the proxy /api -> localhost:3000)
 bun run dev
 
-# API backend standalone saja (watch mode, port default 3000)
+# Standalone API backend only (watch mode, default port 3000)
 bun run dev:api
 
 # Development server + API backend (recommended)
@@ -44,7 +44,7 @@ bun run dev:full
 # Type-check + build web
 bun run build
 
-# Preview hasil build
+# Preview the production build
 bun run preview
 ```
 
@@ -57,20 +57,20 @@ bun run dev:desktop
 # Build web (base ./) + run production desktop
 bun run desktop
 
-# Build saja untuk desktop
+# Desktop-only build
 bun run build:desktop
 ```
 
 ### Database
 
 ```bash
-# Generate migration (hanya saat schema berubah)
+# Generate migration (only when the schema changes)
 bun run db:generate
 
 # Apply migration
 bun run db:migrate
 
-# Push schema langsung ke DB (dev only)
+# Push schema directly to the DB (dev only)
 bun run db:push
 
 # Open Drizzle Studio
@@ -96,15 +96,15 @@ bun run lint
 bunx tsc -b
 ```
 
-## Setup Database
+## Database Setup
 
-1. Copy `.env.example` menjadi `.env`.
-2. Isi `DATABASE_URL` dengan URL PostgreSQL lokal/cloud.
-   - Tanpa `.env`, `drizzle.config.ts` memakai default `postgres://postgres:postgres@localhost:5432/decimatex`.
-3. Jalankan `bun run db:migrate` — migration awal sudah ada di `drizzle/`; `db:generate` hanya dibutuhkan saat schema berubah.
-4. Jalankan `bun run db:seed` untuk mengisi tabel metode DSS default.
+1. Copy `.env.example` to `.env`.
+2. Set `DATABASE_URL` to your local/cloud PostgreSQL URL.
+   - Without `.env`, `drizzle.config.ts` falls back to `postgres://postgres:postgres@localhost:5432/decimatex`.
+3. Run `bun run db:migrate` — the initial migration already exists in `drizzle/`; `db:generate` is only needed when the schema changes.
+4. Run `bun run db:seed` to populate the default DSS method table.
 
-## Arsitektur Project
+## Project Structure
 
 ```
 decimatex/
@@ -112,20 +112,20 @@ decimatex/
 │   ├── main.tsx                  # React entry
 │   ├── App.tsx
 │   ├── router.tsx                # react-router-dom (browser/hash auto-detect)
-│   ├── Home.tsx                  # Halaman utama
-│   ├── Learn.tsx                 # Materi metode
-│   ├── SelectMethod.tsx          # Pilih metode DSS
-│   ├── MatrixPage.tsx            # Input kriteria, alternatif, matriks
+│   ├── Home.tsx                  # Home page
+│   ├── Learn.tsx                 # Method learning materials
+│   ├── SelectMethod.tsx          # DSS method selection
+│   ├── MatrixPage.tsx            # Criteria, alternatives, and matrix input
 │   ├── routes/
-│   │   ├── History.tsx           # Riwayat analisis
-│   │   └── HistoryDetail.tsx     # Detail hasil analisis
+│   │   ├── History.tsx           # Analysis history
+│   │   └── HistoryDetail.tsx     # Analysis result detail
 │   ├── components/
 │   │   ├── layout/Layout.tsx     # Navbar + Outlet wrapper
-│   │   ├── method-steps.tsx      # Step wizard metode
+│   │   ├── method-steps.tsx      # Method step wizard
 │   │   └── ui/                   # shadcn/ui components
 │   ├── features/
 │   │   ├── decision/
-│   │   │   ├── lib/methods/      # 9 algoritma DSS modular
+│   │   │   ├── lib/methods/      # 9 modular DSS algorithms
 │   │   │   │   ├── topsis.ts
 │   │   │   │   ├── edas.ts
 │   │   │   │   ├── psi.ts
@@ -137,7 +137,7 @@ decimatex/
 │   │   │   │   ├── electre.ts
 │   │   │   │   ├── shared.ts     # Utilities & types
 │   │   │   │   ├── index.ts      # Method registry
-│   │   │   │   └── *.test.ts     # Unit tests per metode
+│   │   │   │   └── *.test.ts     # Unit tests per method
 │   │   │   └── hooks/            # TanStack Query hooks
 │   │   │       ├── use-decisions.ts
 │   │   │       ├── use-criteria.ts
@@ -163,7 +163,7 @@ decimatex/
 │   │   │   └── analysis-service.ts
 │   │   └── db/
 │   │       ├── client.ts         # Drizzle client
-│   │       ├── index.ts          # Re-export client & schema
+│   │       ├── index.ts          # Re-exports client & schema
 │   │       ├── schema.ts         # PostgreSQL schema
 │   │       └── seed.ts           # Seed script
 │   ├── lib/
@@ -210,7 +210,7 @@ decimatex/
 | POST | `/api/analysis/run` | Run DSS analysis |
 | GET | `/api/analysis/history/:decisionId` | Get analysis history |
 
-## Metode DSS yang Didukung
+## Supported DSS Methods
 
 | Method | Full Name | Description |
 |--------|-----------|-------------|
@@ -224,9 +224,9 @@ decimatex/
 | PROMETHEE | Preference Ranking Organization Method | Outranking with preference functions |
 | COPRAS | Complex Proportional Assessment | Proportional utility ranking |
 
-## Struktur DSS Pipeline
+## DSS Pipeline Structure
 
-Setiap metode mengikuti pipeline standar:
+Every method follows the standard pipeline:
 
 ```
 Input Matrix
@@ -242,17 +242,17 @@ Score Generation
 Ranking Output
 ```
 
-Semua metode mengimplementasikan interface `runMethod(method, criteria, alternatives, matrix, weights)` yang di-export dari `src/features/decision/lib/methods/index.ts`.
+All methods implement the `runMethod(method, criteria, alternatives, matrix, weights)` interface exported from `src/features/decision/lib/methods/index.ts`.
 
 ## Desktop (Electron)
 
-Saat dijalankan sebagai aplikasi desktop:
+When running as a desktop application:
 
-- **Main process** spawn Hono API server di port internal (default 34567)
-- **Renderer** berkomunikasi via IPC untuk mendapatkan port server
-- **API client** auto-detect Electron dan mengarahkan ke `localhost:${port}`
-- Router otomatis memakai hash mode saat dijalankan dari `file://`
-- Mode dev (`bun run dev:desktop`) memuat Vite dev server (`--dev` flag); mode production memuat `dist/index.html`
+- **Main process** spawns the Hono API server on an internal port (default 34567)
+- **Renderer** communicates via IPC to get the server port
+- **API client** auto-detects Electron and points to `localhost:${port}`
+- The router automatically uses hash mode when running from `file://`
+- Dev mode (`bun run dev:desktop`) loads the Vite dev server (`--dev` flag); production mode loads `dist/index.html`
 
 ## Testing
 
@@ -264,19 +264,19 @@ bun run test
 bunx vitest run src/features/decision/lib/methods/topsis.test.ts
 ```
 
-Tests tersedia untuk:
+Tests are available for:
 - `shared.test.ts` — utilities (`buildMatrix2d`, `normalizeWeights`, `formatNumber`)
 - `topsis.test.ts` — TOPSIS algorithm correctness
 - `edas.test.ts` — EDAS algorithm correctness
 - `ahp.test.ts` — AHP algorithm correctness
 - `psi.test.ts` — PSI algorithm correctness
 
-## Catatan Penting
+## Important Notes
 
-- File konfigurasi shadcn: `components.json`
-- CSS utama: `src/index.css`
-- Alias path `@/*` aktif di TypeScript dan Vite
-- Environment variable: `DATABASE_URL` (PostgreSQL); `PORT` untuk server API (default 3000)
-- Vite dev proxy: `/api` → `http://localhost:3000` (lihat `vite.config.ts`)
-- `src/server/index.ts` — definisi app Hono (CORS, health check, route mounting)
-- `src/server/standalone.ts` — entry `Bun.serve`; dipakai `dev:api`, `dev:full`, production, dan Electron
+- shadcn configuration file: `components.json`
+- Main CSS: `src/index.css`
+- The `@/*` path alias is active in TypeScript and Vite
+- Environment variables: `DATABASE_URL` (PostgreSQL); `PORT` for the API server (default 3000)
+- Vite dev proxy: `/api` → `http://localhost:3000` (see `vite.config.ts`)
+- `src/server/index.ts` — Hono app definition (CORS, health check, route mounting)
+- `src/server/standalone.ts` — `Bun.serve` entry; used by `dev:api`, `dev:full`, production, and Electron
