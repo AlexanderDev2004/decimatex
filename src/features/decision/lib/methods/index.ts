@@ -14,8 +14,6 @@ import { runWp, createWpStepDetails } from "./wp"
 import { runWaspas, createWaspasStepDetails } from "./waspas"
 import { runAras, createArasStepDetails } from "./aras"
 import { runGra, createGraStepDetails } from "./gra"
-import { runEntropyWeights } from "./entropy"
-import type { EntropyWeightsResult } from "./entropy"
 
 export type { Criteria, Alternative, MatrixValue, RankingResult, MethodStepDetails, StepTable } from "./shared"
 export type { EntropyWeightsResult } from "./entropy"
