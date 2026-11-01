@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,6 +27,7 @@ import { useRunAnalysis } from "@/features/decision/hooks/use-analysis"
 import {
 	runMethod,
 	createMethodStepDetails,
+	runEntropyWeights,
 	normalizeWeights,
 	buildEqualWeights,
 	formatNumber,
@@ -42,6 +43,7 @@ function MatrixPage() {
 	const [searchParams] = useSearchParams()
 
 	const method = searchParams.get("method") || "topsis"
+	const autoEntropy = searchParams.get("weights") === "entropy"
 	const decisionName = decodeURIComponent(searchParams.get("name") || "")
 	const decisionId = searchParams.get("decisionId") || null
 
@@ -270,6 +272,35 @@ function MatrixPage() {
 			(weightMode === "percentage" ? weight * 100 : weight).toFixed(6),
 		)
 
+	const [entropyApplied, setEntropyApplied] = useState(false)
+
+	const applyEntropyWeights = () => {
+		if (!decisionId || criteria.length < 2 || alternatives.length < 2) return
+		const result = runEntropyWeights(criteria, alternatives, matrix)
+		for (let j = 0; j < criteria.length; j++) {
+			const weight = result.weights[j] ?? 0
+			const display = weightMode === "percentage" ? weight * 100 : weight
+			updateCriteriaWeight(criteria[j].id, String(display))
+		}
+		setEntropyApplied(true)
+	}
+
+	// Mode bobot otomatis (Entropy dari halaman pilih metode):
+	// terapkan bobot Entropy sekali begitu matriks terisi lengkap.
+	useEffect(() => {
+		if (
+			autoEntropy &&
+			!entropyApplied &&
+			decisionId &&
+			criteria.length >= 2 &&
+			alternatives.length >= 2 &&
+			matrix.length >= criteria.length * alternatives.length
+		) {
+			applyEntropyWeights()
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [autoEntropy, entropyApplied, decisionId, criteria, alternatives, matrix])
+
 	const rawWeights = criteria.map((criterion) => Math.max(0, criterion.weight))
 	const normalizedInputWeights = normalizeWeights(rawWeights, criteria.length)
 	const effectiveWeights = isWeightEnabled
@@ -347,6 +378,18 @@ function MatrixPage() {
 						)}
 					</div>
 				</div>
+
+				{autoEntropy && (
+					<div className="mb-6 rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
+						<p className="font-medium">Mode bobot otomatis (Entropy)</p>
+						<p className="mt-1 text-muted-foreground">
+							Entropy adalah penentu bobot, bukan metode ranking. Bobot kriteria
+							dihitung otomatis dari variasi data matriks, lalu analisis dijalankan
+							dengan metode {methodName}. Untuk metode ranking lain, kembali ke
+							halaman pemilihan metode.
+						</p>
+					</div>
+				)}
 
 				{!showResults ? (
 					<>
@@ -434,11 +477,36 @@ function MatrixPage() {
 													Persentase (%)
 												</option>
 												<option value="decimal">
-													Desimal (0-1)
-												</option>
-											</select>
-										</div>
-									</div>
+														Desimal (0-1)
+													</option>
+												</select>
+												</div>
+
+												<div className="flex items-center justify-between gap-3">
+													<span className="text-sm font-medium">
+														Bobot otomatis (Entropy)
+													</span>
+													<Button
+														type="button"
+														variant="outline"
+														size="sm"
+														onClick={applyEntropyWeights}
+														disabled={
+															!isWeightEnabled ||
+															criteria.length < 2 ||
+															alternatives.length < 2
+														}
+													>
+														<Calculator className="mr-2 h-4 w-4" />
+														Hitung & terapkan
+													</Button>
+												</div>
+												{entropyApplied ? (
+													<p className="text-xs text-muted-foreground">
+														Bobot Entropy diterapkan dari variasi data matrix saat ini.
+													</p>
+												) : null}
+												</div>
 
 									{isWeightEnabled ? (
 										<p className="text-xs text-muted-foreground">

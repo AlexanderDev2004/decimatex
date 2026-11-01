@@ -55,8 +55,8 @@ export function runEdas(
 
 	for (let i = 0; i < nAlternatives; i++) {
 		for (let j = 0; j < nCriteria; j++) {
-			sp[i] += normalizedWeights[j] * Math.max(0, pda[i][j])
-			sn[i] += normalizedWeights[j] * Math.max(0, nda[i][j])
+			sp[i] += normalizedWeights[j] * pda[i][j]
+			sn[i] += normalizedWeights[j] * nda[i][j]
 		}
 	}
 
@@ -110,11 +110,11 @@ export function createEdasStepDetails(
 				continue
 			}
 			if (criteria[j].type === "benefit") {
-				pda[i][j] = Math.max(0, (matrix2d[i][j] - avg[j]) / avg[j])
-				nda[i][j] = Math.max(0, (avg[j] - matrix2d[i][j]) / avg[j])
+				pda[i][j] = (matrix2d[i][j] - avg[j]) / avg[j]
+				nda[i][j] = (avg[j] - matrix2d[i][j]) / avg[j]
 			} else {
-				pda[i][j] = Math.max(0, (avg[j] - matrix2d[i][j]) / avg[j])
-				nda[i][j] = Math.max(0, (matrix2d[i][j] - avg[j]) / avg[j])
+				pda[i][j] = (avg[j] - matrix2d[i][j]) / avg[j]
+				nda[i][j] = (matrix2d[i][j] - avg[j]) / avg[j]
 			}
 		}
 	}
@@ -141,10 +141,10 @@ export function createEdasStepDetails(
 		step4Title: "Normalisasi/deviasi terhadap rata-rata (EDAS)",
 		step4Formula: [
 			"AV_j = (1/m) * sum_i x_ij",
-			"PDA_ij = max(0, (x_ij - AV_j)/AV_j) untuk benefit",
-			"PDA_ij = max(0, (AV_j - x_ij)/AV_j) untuk cost",
-			"NDA_ij = max(0, (AV_j - x_ij)/AV_j) untuk benefit",
-			"NDA_ij = max(0, (x_ij - AV_j)/AV_j) untuk cost",
+			"PDA_ij = (x_ij - AV_j)/AV_j untuk benefit",
+			"PDA_ij = (AV_j - x_ij)/AV_j untuk cost",
+			"NDA_ij = (AV_j - x_ij)/AV_j untuk benefit",
+			"NDA_ij = (x_ij - AV_j)/AV_j untuk cost",
 		],
 		step4Tables: [
 			{

@@ -59,16 +59,17 @@ export function runCopras(
 		}
 	}
 
+	// Rumus kanonik COPRAS (Zavadskas dkk.):
+	// Q_i = S+_i + (S-_min * sum_j(1/S-_j)) / (S-_i * sum_j(1/S-_j))
+	// Faktor sum_j(1/S-_j) saling menghapus sehingga Q_i = S+_i + S-_min / S-_i.
 	const hasCost = criteria.some((c) => c.type === "cost")
-	const safeSMinus = sMinus.map((value) => (value <= 0 ? Number.EPSILON : value))
-	const sumSMinus = safeSMinus.reduce((acc, value) => acc + value, 0)
-	const sumInvSMinus = safeSMinus.reduce((acc, value) => acc + 1 / value, 0)
+	const sMinusMin = hasCost ? Math.min(...sMinus) : 0
 
 	const scores = alternatives.map((alt, i) => {
 		const q =
-			!hasCost || sumInvSMinus === 0
+			!hasCost || sMinus[i] <= 0
 				? sPlus[i]
-				: sPlus[i] + sumSMinus / (safeSMinus[i] * sumInvSMinus)
+				: sPlus[i] + sMinusMin / sMinus[i]
 		return {
 			alternativeId: alt.id,
 			alternativeName: alt.name,
@@ -129,15 +130,13 @@ export function createCoprasStepDetails(
 	}
 
 	const hasCost = criteria.some((c) => c.type === "cost")
-	const safeSMinus = sMinus.map((value) => (value <= 0 ? Number.EPSILON : value))
-	const sumSMinus = safeSMinus.reduce((acc, value) => acc + value, 0)
-	const sumInvSMinus = safeSMinus.reduce((acc, value) => acc + 1 / value, 0)
+	const sMinusMin = hasCost ? Math.min(...sMinus) : 0
 
 	const q: number[] = alternatives.map((_, i) => {
-		if (!hasCost || sumInvSMinus === 0) {
+		if (!hasCost || sMinus[i] <= 0) {
 			return sPlus[i]
 		}
-		return sPlus[i] + sumSMinus / (safeSMinus[i] * sumInvSMinus)
+		return sPlus[i] + sMinusMin / sMinus[i]
 	})
 	const qMax = Math.max(...q)
 
@@ -170,7 +169,7 @@ export function createCoprasStepDetails(
 		step6Formula: [
 			"S_i+ = sum_j q_ij untuk kriteria benefit",
 			"S_i- = sum_j q_ij untuk kriteria cost",
-			"Q_i = S_i+ + (sum_i S_i-) / (S_i- * sum_i (1 / S_i-))",
+			"Q_i = S_i+ + S_i-_min / S_i-",
 			"U_i = (Q_i / Q_max) * 100%",
 		],
 		step6Notes: hasCost ? undefined : ["Tidak ada kriteria cost, sehingga Q_i = S_i+."],

@@ -10,62 +10,126 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { ArrowLeft, ArrowRight, Scale, Calculator, CheckCircle2 } from "lucide-react"
+import {
+  Activity,
+  ArrowLeft,
+  ArrowLeftRight,
+  ArrowRight,
+  Blend,
+  Calculator,
+  CheckCircle2,
+  Divide,
+  Filter,
+  Gauge,
+  Layers,
+  Network,
+  Percent,
+  Plus,
+  Scale,
+  Sigma,
+  SlidersHorizontal,
+  Target,
+  Waves,
+} from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 
-const methods = [
-  { 
-    id: "topsis", 
-    name: "TOPSIS", 
+interface MethodOption {
+  id: string
+  name: string
+  fullName: string
+  icon: LucideIcon
+}
+
+const methods: MethodOption[] = [
+  {
+    id: "topsis",
+    name: "TOPSIS",
     fullName: "Technique for Order Preference by Similarity to Ideal Solution",
-    icon: "📊"
+    icon: Target,
   },
-  { 
-    id: "ahp", 
-    name: "AHP", 
+  {
+    id: "ahp",
+    name: "AHP",
     fullName: "Analytic Hierarchy Process",
-    icon: "⚖️"
+    icon: Network,
   },
-  { 
-    id: "edas", 
-    name: "EDAS", 
+  {
+    id: "edas",
+    name: "EDAS",
     fullName: "Evaluation based on Distance from Average Solution",
-    icon: "📈"
+    icon: Sigma,
   },
-  { 
-    id: "psi", 
-    name: "PSI", 
+  {
+    id: "psi",
+    name: "PSI",
     fullName: "Preference Selection Index",
-    icon: "🎯"
+    icon: Activity,
   },
-  { 
-    id: "vikor", 
-    name: "VIKOR", 
+  {
+    id: "vikor",
+    name: "VIKOR",
     fullName: "VIseKriterijumska Optimizacija I Kompromisno Resenje",
-    icon: "⚡"
+    icon: Scale,
   },
-  { 
-    id: "moora", 
-    name: "MOORA", 
+  {
+    id: "moora",
+    name: "MOORA",
     fullName: "Multi-Objective Optimization on the basis of Ratio Analysis",
-    icon: "🔢"
+    icon: Divide,
   },
-  { 
-    id: "electre", 
-    name: "ELECTRE", 
+  {
+    id: "electre",
+    name: "ELECTRE",
     fullName: "ELimination and Choice Expressing REality",
-    icon: "🔗"
+    icon: Filter,
   },
-  { 
-    id: "promethee", 
-    name: "PROMETHEE", 
+  {
+    id: "promethee",
+    name: "PROMETHEE",
     fullName: "Preference Ranking Organization METHod for Enrichment of Evaluations",
-    icon: "🪜"
+    icon: ArrowLeftRight,
   },
-  { 
-    id: "copras", 
-    name: "COPRAS", 
+  {
+    id: "copras",
+    name: "COPRAS",
     fullName: "COmplex PRoportional ASsessment",
-    icon: "⚖️"
+    icon: Percent,
+  },
+  {
+    id: "saw",
+    name: "SAW",
+    fullName: "Simple Additive Weighting",
+    icon: Plus,
+  },
+  {
+    id: "wp",
+    name: "WP",
+    fullName: "Weighted Product Model",
+    icon: Layers,
+  },
+  {
+    id: "waspas",
+    name: "WASPAS",
+    fullName: "Weighted Aggregated Sum Product ASsessment",
+    icon: Blend,
+  },
+  {
+    id: "aras",
+    name: "ARAS",
+    fullName: "Additive Ratio ASsessment",
+    icon: Gauge,
+  },
+  {
+    id: "gra",
+    name: "GRA",
+    fullName: "Grey Relational Analysis",
+    icon: Waves,
+  },
+  {
+    id: "entropy",
+    name: "Entropy",
+    fullName: "Entropy Weight Method — penentu bobot otomatis dari data (bukan metode ranking)",
+    icon: SlidersHorizontal,
   },
 ]
 
@@ -81,7 +145,11 @@ function SelectMethod() {
         const decision = await createDecision.mutateAsync({
           name: decisionName,
         })
-        navigate(`/decision/matrix?method=${selectedMethod}&name=${encodeURIComponent(decisionName)}&decisionId=${decision.id}`)
+        // Entropy bukan metode ranking: buka halaman matriks dengan metode
+        // ranking default (TOPSIS) dan mode bobot otomatis Entropy.
+        const methodParam =
+          selectedMethod === "entropy" ? "topsis&weights=entropy" : selectedMethod
+        navigate(`/decision/matrix?method=${methodParam}&name=${encodeURIComponent(decisionName)}&decisionId=${decision.id}`)
       } catch (error) {
         console.error("Failed to create decision:", error)
       }
@@ -116,9 +184,9 @@ function SelectMethod() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Input 
+              <Input
                 id="decision-name-input"
-                placeholder="Contoh: Pemilihan Supplier Bahan Baku" 
+                placeholder="Contoh: Pemilihan Supplier Bahan Baku"
                 value={decisionName}
                 onChange={(e) => setDecisionName(e.target.value)}
               />
@@ -132,7 +200,7 @@ function SelectMethod() {
             </h2>
             <div id="method-grid" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {methods.map((method) => (
-                <Card 
+                <Card
                   key={method.id}
                   className={`cursor-pointer transition-all hover:border-primary hover:shadow-lg ${
                     selectedMethod === method.id ? "border-primary bg-primary/5" : ""
@@ -140,7 +208,9 @@ function SelectMethod() {
                   onClick={() => setSelectedMethod(method.id)}
                 >
                   <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                    <span className="text-2xl">{method.icon}</span>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
+                      <method.icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
                     <div className="flex-1">
                       <CardTitle className="text-base">{method.name}</CardTitle>
                     </div>
@@ -157,9 +227,9 @@ function SelectMethod() {
           </div>
 
           <div className="flex justify-center">
-            <Button 
+            <Button
               id="continue-button"
-              size="lg" 
+              size="lg"
               className="gap-2"
               disabled={!selectedMethod || !decisionName || createDecision.isPending}
               onClick={handleContinue}

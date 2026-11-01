@@ -9,8 +9,16 @@ import { runAhp, createAhpStepDetails } from "./ahp"
 import { runCopras, createCoprasStepDetails } from "./copras"
 import { runPromethee, createPrometheeStepDetails } from "./promethee"
 import { runElectre, createElectreStepDetails } from "./electre"
+import { runSaw, createSawStepDetails } from "./saw"
+import { runWp, createWpStepDetails } from "./wp"
+import { runWaspas, createWaspasStepDetails } from "./waspas"
+import { runAras, createArasStepDetails } from "./aras"
+import { runGra, createGraStepDetails } from "./gra"
+import { runEntropyWeights } from "./entropy"
+import type { EntropyWeightsResult } from "./entropy"
 
 export type { Criteria, Alternative, MatrixValue, RankingResult, MethodStepDetails, StepTable } from "./shared"
+export type { EntropyWeightsResult } from "./entropy"
 export {
 	formatNumber,
 	buildMatrix2d,
@@ -19,6 +27,7 @@ export {
 	buildStepRows,
 	createZeroMatrix,
 } from "./shared"
+export { runEntropyWeights } from "./entropy"
 
 export const METHOD_NAMES: Record<string, string> = {
 	topsis: "TOPSIS",
@@ -30,6 +39,11 @@ export const METHOD_NAMES: Record<string, string> = {
 	electre: "ELECTRE",
 	promethee: "PROMETHEE",
 	copras: "COPRAS",
+	saw: "SAW",
+	wp: "WP",
+	waspas: "WASPAS",
+	aras: "ARAS",
+	gra: "GRA",
 }
 
 export function runMethod(
@@ -60,6 +74,16 @@ export function runMethod(
 			return runPromethee(criteria, alternatives, matrix, calculationWeights)
 		case "electre":
 			return runElectre(criteria, alternatives, matrix, calculationWeights)
+		case "saw":
+			return runSaw(criteria, alternatives, matrix, calculationWeights)
+		case "wp":
+			return runWp(criteria, alternatives, matrix, calculationWeights)
+		case "waspas":
+			return runWaspas(criteria, alternatives, matrix, calculationWeights)
+		case "aras":
+			return runAras(criteria, alternatives, matrix, calculationWeights)
+		case "gra":
+			return runGra(criteria, alternatives, matrix, calculationWeights)
 		default:
 			return runTopsis(criteria, alternatives, matrix, calculationWeights)
 	}
@@ -106,6 +130,16 @@ export function createMethodStepDetails(
 			return createPrometheeStepDetails(criteria, alternatives, matrix, inputWeights)
 		case "electre":
 			return createElectreStepDetails(criteria, alternatives, matrix, inputWeights)
+		case "saw":
+			return createSawStepDetails(criteria, alternatives, matrix, inputWeights)
+		case "wp":
+			return createWpStepDetails(criteria, alternatives, matrix, inputWeights)
+		case "waspas":
+			return createWaspasStepDetails(criteria, alternatives, matrix, inputWeights)
+		case "aras":
+			return createArasStepDetails(criteria, alternatives, matrix, inputWeights)
+		case "gra":
+			return createGraStepDetails(criteria, alternatives, matrix, inputWeights)
 		default:
 			return createTopsisStepDetails(criteria, alternatives, matrix, inputWeights)
 	}

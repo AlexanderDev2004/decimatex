@@ -222,6 +222,11 @@ export const defaultMethodsSeed: Array<typeof methods.$inferInsert> = [
 	{ code: "ELECTRE", name: "Elimination and Choice Translating Reality", description: "Outranking method using concordance and discordance." },
 	{ code: "PROMETHEE", name: "Preference Ranking Organization Method for Enrichment Evaluation", description: "Outranking with preference functions." },
 	{ code: "COPRAS", name: "Complex Proportional Assessment", description: "Proportional utility ranking for alternatives." },
+	{ code: "SAW", name: "Simple Additive Weighting", description: "Weighted sum of normalized criteria values." },
+	{ code: "WP", name: "Weighted Product Model", description: "Weighted product of criteria raised to normalized weights." },
+	{ code: "WASPAS", name: "Weighted Aggregated Sum Product Assessment", description: "Combination of weighted sum and weighted product models." },
+	{ code: "ARAS", name: "Additive Ratio Assessment", description: "Utility ratio against the optimal alternative row." },
+	{ code: "GRA", name: "Grey Relational Analysis", description: "Grey relational grade with reference sequence and distinguishing coefficient." },
 ]
 
 export type DecisionProblem = typeof decisionProblems.$inferSelect

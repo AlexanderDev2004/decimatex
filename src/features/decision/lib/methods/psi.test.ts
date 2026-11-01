@@ -47,11 +47,15 @@ describe("PSI (Maniya & Bhatt 2010)", () => {
 		]
 		const results = runPsi(criteria, alternatives, clearMatrix, [0.5, 0.5])
 
-		// a2 = harga terendah (cost terbaik) + kualitas menengah → rank 1
-		// a3 = harga tertinggi (cost terburuk) + kualitas terendah → rank 3
+		// Normalisasi vektor + reciprocal cost, bobot PSI dari variasi data:
+		// Ψ_harga = 0.4720, Ψ_kualitas = 0.5280
+		// PSI: a1 = 0.6210, a2 = 0.6415, a3 = 0.4427
+		// a2 unggul: keunggulan harganya (0.693 vs 0.554) menutupi
+		// kekalahan kualitas (0.596 vs 0.681); a3 terburuk di kedua kriteria.
 		expect(results[0].alternativeId).toBe("a2")
+		expect(results[1].alternativeId).toBe("a1")
 		expect(results[2].alternativeId).toBe("a3")
-		expect(results[2].score).toBe(0)
+		expect(results[2].score).toBeCloseTo(0.4427, 3)
 	})
 
 	it("should ignore user weights (bobot diturunkan dari variasi data)", () => {
